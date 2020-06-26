@@ -777,7 +777,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 				comp_info(dev, "[RYAN] MODE : NO DSM MEMCPY ONLY");
 			}
 		}
-		if (test_dsm_onoff == 0)
+		if (test_dsm_onoff != 0)
 			sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in,
 				avail_frames * 2, sizeof(int32_t), dev);
 		#if 0
