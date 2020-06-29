@@ -708,7 +708,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 
 	if (test_seq % 200 == 0 || test_seq % 200 == 1
 		|| test_seq % 200 == 2 || test_seq < 10) {
-		comp_info(dev, "[RYAN] FW VER : 25JUN2020 #53, smart_amp_copy() avail:%d, source_bytes:%d, sink_bytes:%d, test_toggle:%d",
+		comp_info(dev, "[RYAN] FW VER : 25JUN2020 #54, smart_amp_copy() avail:%d, source_bytes:%d, sink_bytes:%d, test_toggle:%d",
 			avail_frames, source_bytes, sink_bytes,
 			test_toggle);
 
@@ -783,16 +783,14 @@ static int smart_amp_copy(struct comp_dev *dev)
 				avail_frames * 2, sizeof(int32_t), dev);
 		#endif
 		#else
-		if (!test_seq)	{	// in every 2000ms.
-			if (test_toggle)	{
-				comp_info(dev, "[RYAN] MODE : RIGHT to LEFT, REMOVE RIGHT (%d)", sofDsmHandle.seq);
-				for (x = 0 ; x < avail_frames ; x++)            {
-					sad->dsm_in[2 * x] = sad->dsm_in[2 * x + 1];
-					sad->dsm_in[2 * x + 1] = 0;
-				}
-			} else
-				comp_info(dev, "[RYAN] MODE : BYPASS (%d, %d)", test_seq, test_dsm_onoff);
-		}
+		if (test_toggle)	{
+			comp_info(dev, "[RYAN] MODE : RIGHT to LEFT, REMOVE RIGHT (%d)", sofDsmHandle.seq);
+			for (x = 0 ; x < avail_frames ; x++)            {
+				sad->dsm_in[2 * x] = sad->dsm_in[2 * x + 1];
+				sad->dsm_in[2 * x + 1] = 0;
+			}
+		} else
+			comp_info(dev, "[RYAN] MODE : BYPASS (%d, %d)", test_seq, test_dsm_onoff);
 		#endif
 
 		for (x = 0 ; x < avail_frames ; x++)            {
