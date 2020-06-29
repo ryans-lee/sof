@@ -438,8 +438,13 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 					rms_left, rms_right);
 			}
 			for (x = 0; x < SZ_PROC_BUF; x++) {
+				#if 1 // Use 16 LSB only
+				tempBuf[x] = (short) buf[2 * x];
+				tempBuf[x + SZ_PROC_BUF] = (short) buf[2 * x + 1];
+				#else
 				tempBuf[x] = buf[2 * x] >> 16;
 				tempBuf[x + SZ_PROC_BUF] = buf[2 * x + 1] >> 16;
+				#endif
 			}
 
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)

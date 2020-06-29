@@ -46,6 +46,7 @@ struct smart_amp_data {
 	uint32_t out_channels;
 #ifdef CONFIG_MAXIM_DSM
 	int32_t *dsm_in;
+	int32_t *dsm_iv;
 #endif
 };
 
@@ -151,6 +152,14 @@ static struct comp_dev *smart_amp_new(const struct comp_driver *drv,
 		rfree(dev);
 		return NULL;
 	}
+
+	sad->dsm_iv =rzalloc(SOF_MEM_ZONE_RUNTIME, 0,
+		SOF_MEM_CAPS_RAM, sizeof(int32_t) * DSM_PROC_SZ);
+	if (!sad->dsm_iv) {
+		rfree(dev);
+		return NULL;
+	}
+
 
 	if (!dsm_init_done) {
 		comp_info(dev, "[RYAN] smart_amp_new +++ init:%d",
@@ -708,7 +717,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 
 	if (test_seq % 200 == 0 || test_seq % 200 == 1
 		|| test_seq % 200 == 2 || test_seq < 10) {
-		comp_info(dev, "[RYAN] FW VER : 25JUN2020 #54, smart_amp_copy() avail:%d, source_bytes:%d, sink_bytes:%d, test_toggle:%d",
+		comp_info(dev, "[RYAN] FW VER : 25JUN2020 #55, smart_amp_copy() avail:%d, source_bytes:%d, sink_bytes:%d, test_toggle:%d",
 			avail_frames, source_bytes, sink_bytes,
 			test_toggle);
 
@@ -752,35 +761,55 @@ static int smart_amp_copy(struct comp_dev *dev)
 			/* Copying input left */
 			input = (int32_t *)wrap_buffer_pointer(input, &sad->source_buf->stream);
 			sad->dsm_in[2 * x] = *input;
+			sad->dsm_iv[2 * x] = sad->dsm_in[2 * x];
 			input++;
 
 			/* Copying input right */
 			input = (int32_t *)wrap_buffer_pointer(input, &sad->source_buf->stream);
 			sad->dsm_in[2 * x + 1] = *input;
+			sad->dsm_iv[2 * x + 1] = sad->dsm_in[2 * x + 1];
 			input++;
 		}
-		#if 0
+		#if 1
 		#ifndef DSM_BYPASS
-		if (sofDsmHandle.seq % 400 == 0)	{
+		if (test_seq == 0)	{	// In every 2 seconds,
 			if (test_dsm_onoff == 0) {
 				test_dsm_onoff = 1;
 				sof_dsm_onoff(dev, 1);
-				comp_info(dev, "[RYAN] MODE : DSM ON");
+				comp_info(dev, "[RYAN] MODE : DSM ON test_dsm_onoff:%d, seq:%d",
+					test_dsm_onoff,
+					sofDsmHandle.seq);
 				// on
 			} else if (test_dsm_onoff == 1) {
 				test_dsm_onoff = 2;
 				sof_dsm_onoff(dev, 0);
-				comp_info(dev, "[RYAN] MODE : DSM OFF");
+				comp_info(dev, "[RYAN] MODE : DSM OFF test_dsm_onoff:%d, seq:%d",
+					test_dsm_onoff,
+					sofDsmHandle.seq);
 				// off
 			} else {
 				// memcpy bypass
 				test_dsm_onoff = 0;
-				comp_info(dev, "[RYAN] MODE : NO DSM MEMCPY ONLY");
+				comp_info(dev, "[RYAN] MODE : NO DSM MEMCPY ONLY test_dsm_onoff:%d, seq:%d",
+					test_dsm_onoff,
+					sofDsmHandle.seq);
 			}
 		}
-		if (test_dsm_onoff != 0)
-			sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in,
-				avail_frames * 2, sizeof(int32_t), dev);
+		sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in,
+			avail_frames * 2, sizeof(int32_t), dev);
+
+		for (x = 0 ; x < avail_frames ; x++)            {
+			if (test_dsm_onoff == 1)	// on
+				sad->dsm_in[2 * x + 1] = sad->dsm_iv[2 * x];
+			else if (test_dsm_onoff == 2)	// off
+				sad->dsm_in[2 * x + 1] = (int32_t) (sad->dsm_iv[2 * x] * 0.5);
+			else	{	// bypass
+				sad->dsm_in[2 * x] = sad->dsm_iv[2 * x];
+				sad->dsm_in[2 * x + 1] = sad->dsm_iv[2 * x + 1];
+			}
+			// Copy DSM left input to the right output.
+		}
+
 		#endif
 		#else
 		if (test_toggle)	{
