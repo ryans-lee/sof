@@ -623,7 +623,7 @@ static void *wrap_buffer_pointer(void *ptr, const struct audio_stream *buffer) {
 	return ptr;
 }
 
-static int test_dsm_onoff;
+//static int test_dsm_onoff;
 static int smart_amp_copy(struct comp_dev *dev)
 {
 	struct smart_amp_data *sad = comp_get_drvdata(dev);
@@ -772,6 +772,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 		}
 		#if 1
 		#ifndef DSM_BYPASS
+		#if 0
 		if (test_seq == 0)	{	// In every 2 seconds,
 			if (test_dsm_onoff == 0) {
 				test_dsm_onoff = 1;
@@ -795,9 +796,10 @@ static int smart_amp_copy(struct comp_dev *dev)
 					sofDsmHandle.seq);
 			}
 		}
+		#endif
 		sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in, sad->dsm_in,
 			avail_frames * 2, sizeof(int32_t), dev);
-
+		#if 0
 		for (x = 0 ; x < avail_frames ; x++)            {
 			if (test_dsm_onoff == 1)	// on
 				sad->dsm_in[2 * x + 1] = sad->dsm_iv[2 * x];
@@ -809,6 +811,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 			}
 			// Copy DSM left input to the right output.
 		}
+		#endif
 
 		#endif
 		#else

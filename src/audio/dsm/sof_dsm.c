@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #60");
+	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #62");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -253,7 +253,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 					x, (int)retCode);
 		}
 		#endif
-#if 1	// 200625
+#if 0	// 200625
 		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_CLIP_ENABLE);
 		value[1] = 0;
 		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
@@ -456,7 +456,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 					iFSamples, ffFrameSizeSamples,
 					sInitParam.iChannels, sofDsmHandle->seq);
 
-#if 0
+#if 1
 			retCode = DSM_API_FF_process(
 				(void *)dsmHandle,
 				channelMask, input, &iFSamples,
