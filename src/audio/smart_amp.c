@@ -717,7 +717,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 
 	if (test_seq % 200 == 0 || test_seq % 200 == 1
 		|| test_seq % 200 == 2 || test_seq < 10) {
-		comp_info(dev, "[RYAN] FW VER : 30JUN2020 #56, smart_amp_copy() avail:%d, source_bytes:%d, sink_bytes:%d, test_toggle:%d",
+		comp_info(dev, "[RYAN] smart_amp_copy() avail:%d, source_bytes:%d, sink_bytes:%d, test_toggle:%d",
 			avail_frames, source_bytes, sink_bytes,
 			test_toggle);
 

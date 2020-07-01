@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #58");
+	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #59");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -457,7 +457,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 					iFSamples, ffFrameSizeSamples,
 					sInitParam.iChannels, sofDsmHandle->seq);
 
-#if 1
+#if 0
 			retCode = DSM_API_FF_process(
 				(void *)dsmHandle,
 				channelMask, input, &iFSamples,
@@ -465,7 +465,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 #else
 			for (x = 0; x < SZ_PROC_BUF; x++) {
 				output[2 * x] = input[2 * x];
-				output[2* x + 1] = input[2* x +1];
+				output[2* x + 1] = input[2* x + 1];
 			}
 #endif
 			#else
