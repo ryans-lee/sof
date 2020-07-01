@@ -288,7 +288,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 				(int)retCode);
 
 		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_ENABLE_SMART_PT);
-		value[1] = 0;
+		value[1] = 1;
 		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
@@ -401,12 +401,14 @@ static void dsm_test_rms_print(short *input, int nSamples, int *rms_left, int *r
 	}
 }
 
-void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
+void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *out,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
-	int *buf = sofDsmHandle->buf_ff32;
-	int *obuf = sofDsmHandle->buf_ff_out32;
-	int *stage = sofDsmHandle->stage32;
+	int *buf = (int *)sofDsmHandle->buf_ff;
+	int *obuf = (int *)sofDsmHandle->buf_ff_out;
+	int *stage = (int *)sofDsmHandle->stage;
+	short *input = (short *)sofDsmHandle->proc;
+	short *output = (short *)sofDsmHandle->proc2;
 	int *wrPtr = &(sofDsmHandle->ff_avail);
 	int *rdPtr = &(sofDsmHandle->ff_rdy);
 	int remain;
@@ -429,8 +431,6 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 	if (*wrPtr >= SZ_BUFFER) {
 		/* Do FF processing */
 		if (sofDsmHandle->init) {
-			short tempBuf[SZ_BUFFER];
-
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20) {
 				dsm_test_rms_print32_raw(buf, SZ_PROC_BUF, &rms_left, &rms_right);
 				comp_info(dev,
@@ -438,17 +438,13 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 					rms_left, rms_right);
 			}
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				#if 1 // Use 16 LSB only
-				tempBuf[x] = (short) buf[2 * x];
-				tempBuf[x + SZ_PROC_BUF] = (short) buf[2 * x + 1];
-				#else
-				tempBuf[x] = buf[2 * x] >> 16;
-				tempBuf[x + SZ_PROC_BUF] = buf[2 * x + 1] >> 16;
-				#endif
+				input[x] = (buf[2 * (*wrPtr-SZ_BUFFER+x)] >> 16);
+				input[x + SZ_PROC_BUF] = (buf[2 * (*wrPtr-SZ_BUFFER+x) + 1] >> 16);
+
 			}
 
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
-				dsm_test_rms_print(tempBuf, SZ_PROC_BUF, &rms_left, &rms_right);
+				dsm_test_rms_print(input, SZ_PROC_BUF, &rms_left, &rms_right);
 
 			#ifdef USE_DSM_LIB
 			DSM_API_MESSAGE retCode;
@@ -456,16 +452,13 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 			iFSamples = ffFrameSizeSamples*sInitParam.iChannels;
 
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
-				comp_info(dev, "[RYAN] DSM FF +++ . nSamples:%d, ch:%d,(%d) seq:%d",
-				iFSamples, sInitParam.iChannels,
-				tempBuf[0], sofDsmHandle->seq);
-
-			iFSamples = 240 * 2;
-			
+				comp_info(dev, "[RYAN] DSM FF +++ . nSamples:%d, ch:%d, seq:%d",
+					iFSamples, sInitParam.iChannels,
+					sofDsmHandle->seq);
 			retCode = DSM_API_FF_process(
 				(void *)dsmHandle,
-				channelMask, tempBuf, &iFSamples,
-				tempBuf, &oFSamples);
+				channelMask, input, &iFSamples,
+				output, &oFSamples);
 
 			#else
 			dsm_ff_process(
@@ -477,7 +470,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20) {
 				sof_dsm_print_params((void *)dsmHandle, dev);
 
-				dsm_test_rms_print(tempBuf, SZ_PROC_BUF, &rms_left_out, &rms_right_out);
+				dsm_test_rms_print(output, SZ_PROC_BUF, &rms_left_out, &rms_right_out);
 				comp_info(dev,
 					"[RYAN] DSM FF RMS CHECK. Left %d->%d, Right %d -> %d",
 					rms_left, rms_left_out, rms_right, rms_right_out);
@@ -491,12 +484,12 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 				comp_info(dev,
 					"[RYAN] DSM FF ---. retCode:%d ([0]%d, [1]%d)",
 					retCode,
-					tempBuf[0], tempBuf[1]);
+					output[5], output[6]);
 
 			/* Re-ordering back */
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				obuf[2 * (*rdPtr + x)] = tempBuf[x] << 16;
-				obuf[2 * (*rdPtr + x) + 1] = tempBuf[x + SZ_PROC_BUF] << 16;
+				obuf[2 * (*rdPtr + x)] = output[x] << 16;
+				obuf[2 * (*rdPtr + x) + 1] = output[x + SZ_PROC_BUF] << 16;
 			}
 
 		} else {
@@ -510,13 +503,16 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 		/* Do Process here */
 		/* Process done */
 		remain = (*wrPtr - SZ_BUFFER);
-		//memmove(&buf[0], &buf[SZ_PROC_BUF],
-			//(SZ_BUFFER - SZ_PROC_BUF) * szSample);
-		memcpy_s(&stage[0], remain * szSample,
-			&buf[SZ_BUFFER], remain * szSample);
-		//memset(&buf[SZ_PROC_BUF], 0, remain * szSample);
-		memcpy_s(&buf[0], remain * szSample,
-			&stage[0], remain * szSample);
+
+		if (remain)	{
+			//memmove(&buf[0], &buf[SZ_PROC_BUF],
+			//	(SZ_BUFFER - SZ_PROC_BUF) * szSample);
+			memcpy_s(&stage[0], remain * szSample,
+				&buf[SZ_BUFFER], remain * szSample);
+			//memset(&buf[SZ_PROC_BUF], 0, remain * szSample);
+			memcpy_s(&buf[0], remain * szSample,
+				&stage[0], remain * szSample);
+		}
 
 		*wrPtr -= SZ_BUFFER;
 		sofDsmHandle->seq++;
@@ -524,33 +520,36 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 
 	/* Output buffer preparation */
 	if (*rdPtr >= nSamples) {
-		memcpy_s(in, nSamples * szSample,
+		memcpy_s(out, nSamples * szSample,
 			obuf, nSamples * szSample);
 		remain = (*rdPtr - nSamples);
 
-		//memmove(&obuf[0], &obuf[nSamples],
-			//(*rdPtr - nSamples) * szSample);
-		memcpy_s(&stage[0], remain * szSample,
-			&obuf[nSamples], remain * szSample);
-		//memset(&obuf[nSamples], 0, remain * szSample);
-		memcpy_s(&obuf[0], remain * szSample,
-			&stage[0], remain * szSample);
-
+		if (remain)	{
+			//memmove(&obuf[0], &obuf[nSamples],
+				//(*rdPtr - nSamples) * szSample);
+			memcpy_s(&stage[0], remain * szSample,
+				&obuf[nSamples], remain * szSample);
+			//memset(&obuf[nSamples], 0, remain * szSample);
+			memcpy_s(&obuf[0], remain * szSample,
+				&stage[0], remain * szSample);
+		}
 		*rdPtr -= nSamples;
 	} else {
-		memset(in, 0, nSamples * szSample);
+		memset(out, 0, nSamples * szSample);
 		comp_info(dev,
 			"[RYAN] DSM FF process underrun. rdPtr : %d",
 			*rdPtr);
 	}
 }
 
-void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
+void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *out,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
-	short *buf = sofDsmHandle->buf_ff;
-	short *obuf = sofDsmHandle->buf_ff_out;
-	short *stage = sofDsmHandle->stage;
+	short *buf = (short *)sofDsmHandle->buf_ff;
+	short *obuf = (short *)sofDsmHandle->buf_ff_out;
+	short *stage = (short *)sofDsmHandle->stage;
+	short *input = (short *)sofDsmHandle->proc;
+	short *output = (short *)sofDsmHandle->proc2;
 	int *wrPtr = &(sofDsmHandle->ff_avail);
 	int *rdPtr = &(sofDsmHandle->ff_rdy);
 	int remain;
@@ -558,8 +557,8 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 
 	if (*wrPtr + nSamples <= SZ_BUFFER) {
 		/* 16bit process only */
-		memcpy_s(&buf[*wrPtr], nSamples * sizeof(short),
-			in, nSamples * sizeof(short));
+		memcpy_s(&buf[*wrPtr], nSamples * szSample,
+			in, nSamples * szSample);
 		*wrPtr += nSamples;
 	}
 	else {
@@ -573,11 +572,9 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 	if (*wrPtr >= SZ_BUFFER) {
 		/* Do FF processing */
 		if (sofDsmHandle->init) {
-			short tempBuf[SZ_BUFFER];
-
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				tempBuf[x] = buf[2 * x];
-				tempBuf[x + SZ_PROC_BUF] = buf[2 * x + 1];
+				input[x] = buf[2 * (*wrPtr-SZ_BUFFER+x)];
+				input[x + SZ_PROC_BUF] = buf[2 * (*wrPtr-SZ_BUFFER+x) + 1];
 			}
 
 			#ifdef USE_DSM_LIB
@@ -588,14 +585,14 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
 				comp_info(dev, "[RYAN] DSM FF +++ . nSamples:%d, ch:%d,(%d) seq:%d",
 				iFSamples, sInitParam.iChannels,
-				tempBuf[0], sofDsmHandle->seq);
+				input[0], sofDsmHandle->seq);
 
-			iFSamples = 240 * 2;
+			channelMask = 0;
 
 			retCode = DSM_API_FF_process(
 				(void *)dsmHandle,
-				channelMask, tempBuf, &iFSamples,
-				tempBuf, &oFSamples);
+				channelMask, input, &iFSamples,
+				output, &oFSamples);
 
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
 				comp_info(dev,
@@ -605,17 +602,17 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 				comp_info(dev,
 					"[RYAN] DSM FF ---. retCode:%d ([0]%d, [1]%d)",
 					retCode,
-					tempBuf[0], tempBuf[1]);
+					output[0], output[1]);
 			#else
 			dsm_ff_process(
 				(struct sof_dsm_struct_t *) sofDsmHandle,
-				tempBuf, SZ_BUFFER, 2, dev);
+				input, SZ_BUFFER, 2, dev);
 			#endif
 
 			/* Re-ordering back */
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				obuf[2 * (*rdPtr + x)] = tempBuf[x];
-				obuf[2 * (*rdPtr + x) + 1] = tempBuf[x + SZ_PROC_BUF];
+				obuf[2 * (*rdPtr + x)] = output[x];
+				obuf[2 * (*rdPtr + x) + 1] = output[x + SZ_PROC_BUF];
 			}
 
 		} else {
@@ -630,13 +627,16 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 		/* Do Process here */
 		/* Process done */
 		remain = (*wrPtr - SZ_BUFFER);
-		//memmove(&buf[0], &buf[SZ_PROC_BUF],
-			//(SZ_BUFFER - SZ_PROC_BUF) * sizeof(short));
-		memcpy_s(&stage[0], remain * sizeof(short),
-			&buf[SZ_BUFFER], remain * sizeof(short));
-		//memset(&buf[SZ_PROC_BUF], 0, remain * sizeof(short));
-		memcpy_s(&buf[0], remain * sizeof(short),
-			&stage[0], remain * sizeof(short));
+
+		if (remain)	{
+			//memmove(&buf[0], &buf[SZ_PROC_BUF],
+			//	(SZ_BUFFER - SZ_PROC_BUF) * szSample);
+			memcpy_s(&stage[0], remain * szSample,
+				&buf[SZ_BUFFER], remain * szSample);
+			//memset(&buf[SZ_PROC_BUF], 0, remain * szSample);
+			memcpy_s(&buf[0], remain * szSample,
+				&stage[0], remain * szSample);
+		}
 
 		*wrPtr -= SZ_BUFFER;
 		sofDsmHandle->seq++;
@@ -644,21 +644,22 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 
 	/* Output buffer preparation */
 	if (*rdPtr >= nSamples) {
-		memcpy_s(in, nSamples * sizeof(short),
-			obuf, nSamples * sizeof(short));
+		memcpy_s(out, nSamples * szSample,
+			obuf, nSamples * szSample);
 		remain = (*rdPtr - nSamples);
 
-		//memmove(&obuf[0], &obuf[nSamples],
-			//(*rdPtr - nSamples) * sizeof(short));
-		memcpy_s(&stage[0], remain * sizeof(short),
-			&obuf[nSamples], remain * sizeof(short));
-		//memset(&obuf[nSamples], 0, remain * sizeof(short));
-		memcpy_s(&obuf[0], remain * sizeof(short),
-			&stage[0], remain * sizeof(short));
-
+		if (remain)	{
+			//memmove(&obuf[0], &obuf[nSamples],
+				//(*rdPtr - nSamples) * szSample);
+			memcpy_s(&stage[0], remain * szSample,
+				&obuf[nSamples], remain * szSample);
+			//memset(&obuf[nSamples], 0, remain * szSample);
+			memcpy_s(&obuf[0], remain * szSample,
+				&stage[0], remain * szSample);
+		}
 		*rdPtr -= nSamples;
 	} else {
-		memset(in, 0, nSamples * szSample);
+		memset(out, 0, nSamples * szSample);
 		comp_info(dev,
 			"[RYAN] DSM FF process underrun. rdPtr : %d",
 			*rdPtr);
