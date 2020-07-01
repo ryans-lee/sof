@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #57");
+	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #58");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -253,9 +253,9 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 					x, (int)retCode);
 		}
 		#endif
-#if 0	// 200625
+#if 1	// 200625
 		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_CLIP_ENABLE);
-		value[1] = 1;
+		value[1] = 0;
 		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
@@ -263,7 +263,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 				DSM_API_SETGET_ENABLE_LINKWITZ_EQ,
 				(int)retCode);
 		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_EXC_ENABLE);
-		value[1] = 1;
+		value[1] = 0;
 		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
@@ -271,7 +271,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 				DSM_API_SETGET_ENABLE_LINKWITZ_EQ,
 				(int)retCode);
 		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_THERMAL_ENABLE);
-		value[1] = 1;
+		value[1] = 0;
 		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
@@ -457,11 +457,16 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 					iFSamples, ffFrameSizeSamples,
 					sInitParam.iChannels, sofDsmHandle->seq);
 
-#if 0
+#if 1
 			retCode = DSM_API_FF_process(
 				(void *)dsmHandle,
 				channelMask, input, &iFSamples,
 				output, &oFSamples);
+#else
+			for (x = 0; x < SZ_PROC_BUF; x++) {
+				output[2 * x] = input[2 * x];
+				output[2* x + 1] = input[2* x +1];
+			}
 #endif
 			#else
 			dsm_ff_process(
