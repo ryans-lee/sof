@@ -156,6 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
+	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #57");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -288,7 +289,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 				(int)retCode);
 
 		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_ENABLE_SMART_PT);
-		value[1] = 1;
+		value[1] = 0;
 		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
@@ -365,7 +366,7 @@ void dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 	int nSamples, int szSamples, struct comp_dev *dev)
 {
 	if (sofDsmHandle->seq_fb % 200 == 0)
-		comp_info(dev, "[RYAN] DSM FB nSamples:%d (%d, %d, %d, %d), initialized:%d",
+		comp_info(dev, "[RYAN] DSM FB nSamples:%d (%d, %d), initialized:%d",
 			nSamples, input[0], input[1], sofDsmHandle->init);
 	sofDsmHandle->seq_fb++;
 }
@@ -404,9 +405,9 @@ static void dsm_test_rms_print(short *input, int nSamples, int *rms_left, int *r
 void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *out,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
-	int *buf = (int *)sofDsmHandle->buf_ff;
-	int *obuf = (int *)sofDsmHandle->buf_ff_out;
-	int *stage = (int *)sofDsmHandle->stage;
+	int *buf = sofDsmHandle->buf_ff;
+	int *obuf = sofDsmHandle->buf_ff_out;
+	int *stage = sofDsmHandle->stage;
 	short *input = (short *)sofDsmHandle->proc;
 	short *output = (short *)sofDsmHandle->proc2;
 	int *wrPtr = &(sofDsmHandle->ff_avail);
@@ -438,8 +439,8 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 					rms_left, rms_right);
 			}
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				input[x] = (buf[2 * (*wrPtr-SZ_BUFFER+x)] >> 16);
-				input[x + SZ_PROC_BUF] = (buf[2 * (*wrPtr-SZ_BUFFER+x) + 1] >> 16);
+				input[x] = (buf[2 * (*wrPtr - SZ_BUFFER + x)] >> 16);
+				input[x + SZ_PROC_BUF] = (buf[2 * (*wrPtr - SZ_BUFFER + x) + 1] >> 16);
 
 			}
 
@@ -452,14 +453,16 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 			iFSamples = ffFrameSizeSamples*sInitParam.iChannels;
 
 			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
-				comp_info(dev, "[RYAN] DSM FF +++ . nSamples:%d, ch:%d, seq:%d",
-					iFSamples, sInitParam.iChannels,
-					sofDsmHandle->seq);
+				comp_info(dev, "[RYAN] DSM FF +++ . nSamples:%d, FrameSize:%d, ch:%d, seq:%d",
+					iFSamples, ffFrameSizeSamples,
+					sInitParam.iChannels, sofDsmHandle->seq);
+
+#if 0
 			retCode = DSM_API_FF_process(
 				(void *)dsmHandle,
 				channelMask, input, &iFSamples,
 				output, &oFSamples);
-
+#endif
 			#else
 			dsm_ff_process(
 				(struct sof_dsm_struct_t *) sofDsmHandle,
@@ -484,12 +487,12 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 				comp_info(dev,
 					"[RYAN] DSM FF ---. retCode:%d ([0]%d, [1]%d)",
 					retCode,
-					output[5], output[6]);
+					output[0], output[1]);
 
 			/* Re-ordering back */
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				obuf[2 * (*rdPtr + x)] = output[x] << 16;
-				obuf[2 * (*rdPtr + x) + 1] = output[x + SZ_PROC_BUF] << 16;
+				obuf[2 * (*rdPtr + x)] = (output[x] << 16);
+				obuf[2 * (*rdPtr + x) + 1] = (output[x + SZ_PROC_BUF] << 16);
 			}
 
 		} else {
