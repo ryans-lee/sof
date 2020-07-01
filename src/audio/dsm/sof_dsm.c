@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #59");
+	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #60");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -401,15 +401,14 @@ static void dsm_test_rms_print(short *input, int nSamples, int *rms_left, int *r
 		*rms_right += (input[righty] > 0 ? input[righty] : -input[righty]);
 	}
 }
-
+short input[SZ_BUFFER];
+short output[SZ_BUFFER];
 void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *out,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
-	int *buf = sofDsmHandle->buf_ff;
-	int *obuf = sofDsmHandle->buf_ff_out;
-	int *stage = sofDsmHandle->stage;
-	short *input = (short *)sofDsmHandle->proc;
-	short *output = (short *)sofDsmHandle->proc2;
+	int *buf = sofDsmHandle->buf_ff32;
+	int *obuf = sofDsmHandle->buf_ff_out32;
+	int *stage = sofDsmHandle->stage32;
 	int *wrPtr = &(sofDsmHandle->ff_avail);
 	int *rdPtr = &(sofDsmHandle->ff_rdy);
 	int remain;
@@ -553,11 +552,9 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *out,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
-	short *buf = (short *)sofDsmHandle->buf_ff;
-	short *obuf = (short *)sofDsmHandle->buf_ff_out;
-	short *stage = (short *)sofDsmHandle->stage;
-	short *input = (short *)sofDsmHandle->proc;
-	short *output = (short *)sofDsmHandle->proc2;
+	short *buf = sofDsmHandle->buf_ff;
+	short *obuf = sofDsmHandle->buf_ff_out;
+	short *stage = sofDsmHandle->stage;
 	int *wrPtr = &(sofDsmHandle->ff_avail);
 	int *rdPtr = &(sofDsmHandle->ff_rdy);
 	int remain;

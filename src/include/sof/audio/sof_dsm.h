@@ -15,12 +15,14 @@
 #define SZ_BUFFER (SZ_PROC_BUF * 2)
 
 struct sof_dsm_struct_t {
-	int buf_ff[SZ_BUFFER];
-	int buf_ff_out[SZ_BUFFER];
-	int stage[SZ_BUFFER];
-	int proc[SZ_BUFFER];
-	int proc2[SZ_BUFFER];
+	short buf_ff[SZ_BUFFER];
+	short buf_ff_out[SZ_BUFFER];
+	short stage[SZ_BUFFER];
 
+	int buf_ff32[SZ_BUFFER];
+	int buf_ff_out32[SZ_BUFFER];
+	int stage32[SZ_BUFFER];
+	
 	int ff_avail;
 	int ff_rdy;
 	bool init;
