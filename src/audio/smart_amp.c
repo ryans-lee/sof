@@ -799,6 +799,9 @@ static int smart_amp_copy(struct comp_dev *dev)
 		#endif
 		sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in, sad->dsm_in,
 			avail_frames * 2, sizeof(int32_t), dev);
+		for (x = 0 ; x < avail_frames ; x++)            {
+			sad->dsm_in[2 * x + 1] = sad->dsm_iv[2 * x];
+		}
 		#if 0
 		for (x = 0 ; x < avail_frames ; x++)            {
 			if (test_dsm_onoff == 1)	// on
