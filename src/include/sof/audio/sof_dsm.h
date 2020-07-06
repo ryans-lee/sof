@@ -31,8 +31,6 @@ struct sof_dsm_struct_t {
 	int ff_rdy;
 	bool init;
 	/* Debug purpose */
-	int seq_ff;
-	int seq_fb;
 	bool toggle;
 	int seq;
 	int fb_seq;

@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #64");
+	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #65");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -351,32 +351,17 @@ void dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 	int x;
 	int nSamples_per_channel = (nSamples >> 1);
 
-	if (sofDsmHandle->seq_ff % 200 == 0)
-		comp_info(dev, "[RYAN] DSM FF. nSamples:%d (%d, %d), initialized:%d",
-			nSamples, input[0], input[1], sofDsmHandle->init);
-
-	if (sofDsmHandle->seq_ff % 1000 == 0)	{
-		if (sofDsmHandle->toggle == false)
-			sofDsmHandle->toggle = true;
-		else
-			sofDsmHandle->toggle = false;
-	}
-
 	for (x = 0 ; x < nSamples_per_channel; x++)	{
 		input[x] = sof_dsm_test_sin_gen(sofDsmHandle, 1);
 		input[x + nSamples_per_channel] = sof_dsm_test_sin_gen(sofDsmHandle, 0);
 	}
-	sofDsmHandle->seq_ff++;
 }
 #endif
 
 void dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 	int nSamples, int szSamples, struct comp_dev *dev)
 {
-	if (sofDsmHandle->seq_fb % 200 == 0)
-		comp_info(dev, "[RYAN] DSM FB nSamples:%d (%d, %d), initialized:%d",
-			nSamples, input[0], input[1], sofDsmHandle->init);
-	sofDsmHandle->seq_fb++;
+
 }
 
 static void dsm_test_rms_print32_raw(int *input, int nSamples, int *rms_left, int *rms_right)

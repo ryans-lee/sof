@@ -702,27 +702,29 @@ static int smart_amp_copy(struct comp_dev *dev)
 			for (x = 0 ; x < avail_frames ; x++)            {
 				/* Copying input CH0 */
 				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x + 2] = *iv;
+				sad->dsm_iv[4 * x + 2] = *iv;	// right V
 				iv++;
 				/* Copying input CH1 */
 				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x + 3] = *iv;
+				sad->dsm_iv[4 * x + 3] = *iv;	// right I
 				iv++;
 				/* Copying input CH2 */
 				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x] = *iv;
+				sad->dsm_iv[4 * x] = *iv;		// left V
 				iv++;
 				/* Copying input CH3 */
 				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x + 1] = *iv;
+				sad->dsm_iv[4 * x + 1] = *iv;	// left I
 				iv++;
 			}
+			if (0) {
 			sof_dsm_fb_process_32(&sofDsmHandle, sad->dsm_iv,
 				avail_frames * 4, sizeof(int32_t), dev);
 			if (0)
 				smart_amp_process(dev, avail_frames,
 					sad->feedback_buf, sad->sink_buf,
 					sad->config.feedback_ch_map);
+			}
 		}
 		comp_update_buffer_consume(sad->feedback_buf, feedback_bytes);
 	}
