@@ -29,7 +29,7 @@ static int ffFrameSizeSamples, fbFrameSizeSamples;
 static dsm_api_memory_size_ext_t   sMemSize;
 int circularBufferSize[MAX_CHANNELS*4];
 static int channelMask;
-static int iFSamples;//, iBSamples;
+static int iFSamples, iBSamples;
 static int oFSamples;
 #else
 #define SZ_S200 120
@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 01JUL2020 #63");
+	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #64");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -319,6 +319,14 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 			comp_info(dev,
 				"[RYAN] DSM_API_Set_Params() failed: id:%d error code = %i",
 				DSM_API_SETGET_EQ_BAND_ENABLE, (int)retCode);
+
+		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_VLIMIT);
+		value[1] = 0x4000000;
+		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] DSM_API_Set_Params() failed: id:%d error code = %i",
+				DSM_API_SETGET_EQ_BAND_ENABLE, (int)retCode);
 	}
 #else
 	comp_info(dev, "[RYAN] DSM test initialized. ex:%d, ch_id:%d",
@@ -401,6 +409,101 @@ static void dsm_test_rms_print(short *input, int nSamples, int *rms_left, int *r
 		*rms_right += (input[righty] > 0 ? input[righty] : -input[righty]);
 	}
 }
+
+short iData[SZ_BUFFER];
+short vData[SZ_BUFFER];
+void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
+	int nSamples, int szSample, struct comp_dev *dev)
+{
+	DSM_API_MESSAGE retCode;
+	int *buf = sofDsmHandle->buf_fb32;
+	int *wrPtr = &(sofDsmHandle->fb_avail);
+	int x;
+
+	if (*wrPtr + nSamples <= SZ_IV_BUFFER) {
+		memcpy_s(&buf[*wrPtr], nSamples * szSample,
+			in, nSamples * szSample);
+		*wrPtr += nSamples;
+	}
+	else {
+		comp_info(dev,
+			"[RYAN] DSM FB process overflow. wrPtr : %d",
+			*wrPtr);
+		return;
+	}
+
+
+	if (*wrPtr >= SZ_IV_BUFFER) {
+		/* Do FF processing */
+		if (sofDsmHandle->init) {
+			for (x = 0; x < SZ_PROC_BUF; x++) {
+				iData[x] = (buf[4 * (*wrPtr - SZ_BUFFER + x)] >> 16);
+				iData[x + SZ_PROC_BUF] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 1] >> 16);
+				vData[x] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 2] >> 16);
+				vData[x + SZ_PROC_BUF] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 3] >> 16);
+			}
+			if (sofDsmHandle->fb_seq % 200 == 0 || sofDsmHandle->fb_seq < 20)
+				comp_info(dev, "[RYAN] DSM FB +++ . nSamples:%d, FrameSize:%d, ch:%d, seq:%d",
+					iBSamples, fbFrameSizeSamples,
+					sInitParam.iChannels, sofDsmHandle->seq);
+
+			iBSamples = fbFrameSizeSamples*sInitParam.iChannels;
+			retCode = DSM_API_FB_process(dsmHandle,
+				channelMask, iData, vData, &iBSamples);
+		} else {
+			comp_info(dev,
+				"[RYAN] DSM FB process skipped. %d, seq:%d",
+				sofDsmHandle->init, sofDsmHandle->seq);
+		}
+
+		*wrPtr -= SZ_IV_BUFFER;
+		sofDsmHandle->fb_seq++;
+
+		#if 1	// param update.
+		int cmdBlock[1+MAX_CHANNELS];
+	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_COILTEMP);
+		retCode = DSM_API_Get_Params(dsmHandle,
+			1, (void *)cmdBlock);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				x, (int)retCode);
+		else
+			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:COILTEMP) (L:%x, R:%x) Q19", cmdBlock[1], cmdBlock[2]);
+
+	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_DC_RES);
+		retCode = DSM_API_Get_Params(dsmHandle,
+			1, (void *)cmdBlock);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				x, (int)retCode);
+		else
+			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:DC_RES) (L:%x, R:%x) Q27", cmdBlock[1], cmdBlock[2]);
+
+	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_FC);
+		retCode = DSM_API_Get_Params(dsmHandle,
+			1, (void *)cmdBlock);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				x, (int)retCode);
+		else
+			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:ADAPTIVE_FC) (L:%x, R:%x) Q9", cmdBlock[1], cmdBlock[2]);
+
+	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_Q);
+		retCode = DSM_API_Get_Params(dsmHandle,
+			1, (void *)cmdBlock);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				x, (int)retCode);
+		else
+			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:ADAPTIVE_Q) (L:%x, R:%x) Q29", cmdBlock[1], cmdBlock[2]);
+		#endif
+	}
+}
+
 short input[SZ_BUFFER];
 short output[SZ_BUFFER];
 void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *out,

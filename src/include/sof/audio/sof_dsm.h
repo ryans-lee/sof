@@ -13,6 +13,7 @@
 
 #define SZ_PROC_BUF 240
 #define SZ_BUFFER (SZ_PROC_BUF * 2)
+#define SZ_IV_BUFFER (SZ_PROC_BUF * 4)
 
 struct sof_dsm_struct_t {
 	short buf_ff[SZ_BUFFER];
@@ -22,7 +23,10 @@ struct sof_dsm_struct_t {
 	int buf_ff32[SZ_BUFFER];
 	int buf_ff_out32[SZ_BUFFER];
 	int stage32[SZ_BUFFER];
-	
+
+	int buf_fb32[SZ_IV_BUFFER];
+	int fb_avail;
+
 	int ff_avail;
 	int ff_rdy;
 	bool init;
@@ -31,6 +35,7 @@ struct sof_dsm_struct_t {
 	int seq_fb;
 	bool toggle;
 	int seq;
+	int fb_seq;
 	bool tone_gen_toggle0;
 	bool tone_gen_toggle1;
 	int tone_gen_seq0;
@@ -50,7 +55,8 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle,
 	void *in, void *out, int nSamples, int szSample, struct comp_dev *dev);
 void sof_dsm_ff_process(struct sof_dsm_struct_t *dsmHandle,
 	void *in, void *out, int nSamples, int szSample, struct comp_dev *dev);
-
+void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
+	int nSamples, int szSample, struct comp_dev *dev);
 /* DSM Library Parameters */
 #define MAX_CHANNELS 2
 
