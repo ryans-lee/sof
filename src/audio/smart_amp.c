@@ -698,24 +698,30 @@ static int smart_amp_copy(struct comp_dev *dev)
 			/* do nothing */
 		} else {
 			int32_t *iv = (int32_t*) sad->feedback_buf->stream.r_ptr;
-
-			for (x = 0 ; x < avail_frames ; x++)            {
-				/* Copying input CH0 */
-				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x + 2] = *iv;	// right V
-				iv++;
-				/* Copying input CH1 */
-				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x + 3] = *iv;	// right I
-				iv++;
-				/* Copying input CH2 */
-				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x] = *iv;		// left V
-				iv++;
-				/* Copying input CH3 */
-				iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-				sad->dsm_iv[4 * x + 1] = *iv;	// left I
-				iv++;
+			if (test_seq % 200 == 0 || test_seq % 200 == 1
+				|| test_seq % 200 == 2 || test_seq < 10) {
+				comp_info(dev, "[RYAN] smart_amp_copy() FB avail:%d",
+						avail_frames);				
+			}
+			if (0) {
+				for (x = 0 ; x < avail_frames ; x++)            {
+					/* Copying input CH0 */
+					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
+					sad->dsm_iv[4 * x + 2] = *iv;	// right V
+					iv++;
+					/* Copying input CH1 */
+					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
+					sad->dsm_iv[4 * x + 3] = *iv;	// right I
+					iv++;
+					/* Copying input CH2 */
+					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
+					sad->dsm_iv[4 * x] = *iv;		// left V
+					iv++;
+					/* Copying input CH3 */
+					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
+					sad->dsm_iv[4 * x + 1] = *iv;	// left I
+					iv++;
+				}
 			}
 			if (0) {
 			sof_dsm_fb_process_32(&sofDsmHandle, sad->dsm_iv,

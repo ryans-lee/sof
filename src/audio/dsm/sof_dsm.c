@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #65");
+	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #66");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
