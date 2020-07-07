@@ -710,7 +710,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 				comp_info(dev, "[RYAN] smart_amp_copy() FB avail:%d",
 						avail_frames);				
 			}
-			if (0) {
+			if (1) {
 				for (x = 0 ; x < avail_frames ; x++)            {
 					/* Copying input CH0 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
@@ -842,9 +842,11 @@ static int smart_amp_copy(struct comp_dev *dev)
 		#endif
 		sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in, sad->dsm_in,
 			avail_frames * 2, sizeof(int32_t), dev);
+		#if 1
 		for (x = 0 ; x < avail_frames ; x++)            {
 			sad->dsm_in[2 * x + 1] = sad->dsm_test[2 * x];
 		}
+		#endif
 		#if 0
 		for (x = 0 ; x < avail_frames ; x++)            {
 			if (test_dsm_onoff == 1)	// on
