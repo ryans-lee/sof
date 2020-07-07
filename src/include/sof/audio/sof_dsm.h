@@ -24,9 +24,6 @@ struct sof_dsm_struct_t {
 	int buf_ff_out32[SZ_BUFFER];
 	int stage32[SZ_BUFFER];
 
-	int buf_fb32[SZ_IV_BUFFER];
-	int fb_avail;
-
 	int ff_avail;
 	int ff_rdy;
 	bool init;

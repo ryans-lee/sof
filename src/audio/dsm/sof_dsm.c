@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #66");
+	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #67");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -397,12 +397,19 @@ static void dsm_test_rms_print(short *input, int nSamples, int *rms_left, int *r
 
 short iData[SZ_BUFFER];
 short vData[SZ_BUFFER];
+int buf_fb32[SZ_IV_BUFFER];
+int fb_avail = 0;
 void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
 	DSM_API_MESSAGE retCode;
+	#if 0
 	int *buf = sofDsmHandle->buf_fb32;
 	int *wrPtr = &(sofDsmHandle->fb_avail);
+	#else
+	int *buf = &buf_fb32[0];
+	int *wrPtr = &fb_avail;
+	#endif
 	int x;
 
 	if (*wrPtr + nSamples <= SZ_IV_BUFFER) {
