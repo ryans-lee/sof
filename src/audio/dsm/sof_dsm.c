@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #67");
+	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #68");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -351,17 +351,32 @@ void dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 	int x;
 	int nSamples_per_channel = (nSamples >> 1);
 
+	if (sofDsmHandle->seq_ff % 200 == 0)
+		comp_info(dev, "[RYAN] DSM FF. nSamples:%d (%d, %d), initialized:%d",
+			nSamples, input[0], input[1], sofDsmHandle->init);
+
+	if (sofDsmHandle->seq_ff % 1000 == 0)	{
+		if (sofDsmHandle->toggle == false)
+			sofDsmHandle->toggle = true;
+		else
+			sofDsmHandle->toggle = false;
+	}
+
 	for (x = 0 ; x < nSamples_per_channel; x++)	{
 		input[x] = sof_dsm_test_sin_gen(sofDsmHandle, 1);
 		input[x + nSamples_per_channel] = sof_dsm_test_sin_gen(sofDsmHandle, 0);
 	}
+	sofDsmHandle->seq_ff++;
 }
 #endif
 
 void dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 	int nSamples, int szSamples, struct comp_dev *dev)
 {
-
+	if (sofDsmHandle->seq_fb % 200 == 0)
+		comp_info(dev, "[RYAN] DSM FB nSamples:%d (%d, %d), initialized:%d",
+			nSamples, input[0], input[1], sofDsmHandle->init);
+	sofDsmHandle->seq_fb++;
 }
 
 static void dsm_test_rms_print32_raw(int *input, int nSamples, int *rms_left, int *rms_right)
@@ -434,7 +449,7 @@ void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 				vData[x] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 2] >> 16);
 				vData[x + SZ_PROC_BUF] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 3] >> 16);
 			}
-			if (sofDsmHandle->fb_seq % 200 == 0 || sofDsmHandle->fb_seq < 20)
+			if (sofDsmHandle->seq_fb % 200 == 0 || sofDsmHandle->seq_fb < 20)
 				comp_info(dev, "[RYAN] DSM FB +++ . nSamples:%d, FrameSize:%d, ch:%d, seq:%d",
 					iBSamples, fbFrameSizeSamples,
 					sInitParam.iChannels, sofDsmHandle->seq);
@@ -449,7 +464,7 @@ void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 		}
 
 		*wrPtr -= SZ_IV_BUFFER;
-		sofDsmHandle->fb_seq++;
+		sofDsmHandle->seq_fb++;
 
 		#if 1	// param update.
 		int cmdBlock[1+MAX_CHANNELS];

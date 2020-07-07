@@ -161,6 +161,13 @@ static struct comp_dev *smart_amp_new(const struct comp_driver *drv,
 		return NULL;
 	}
 
+	sad->dsm_test =rzalloc(SOF_MEM_ZONE_RUNTIME, 0,
+		SOF_MEM_CAPS_RAM, sizeof(int32_t) * DSM_PROC_SZ);
+	if (!sad->dsm_test) {
+		rfree(dev);
+		return NULL;
+	}
+
 	if (!dsm_init_done) {
 		comp_info(dev, "[RYAN] smart_amp_new +++ init:%d",
 			dsm_init_done);

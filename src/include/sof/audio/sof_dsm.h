@@ -23,14 +23,15 @@ struct sof_dsm_struct_t {
 	int buf_ff32[SZ_BUFFER];
 	int buf_ff_out32[SZ_BUFFER];
 	int stage32[SZ_BUFFER];
-
+	
 	int ff_avail;
 	int ff_rdy;
 	bool init;
 	/* Debug purpose */
+	int seq_ff;
+	int seq_fb;
 	bool toggle;
 	int seq;
-	int fb_seq;
 	bool tone_gen_toggle0;
 	bool tone_gen_toggle1;
 	int tone_gen_seq0;
