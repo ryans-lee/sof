@@ -730,7 +730,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 					iv++;
 				}
 			}
-			if (0) {
+			if (1) {
 			sof_dsm_fb_process_32(&sofDsmHandle, sad->dsm_iv,
 				avail_frames * 4, sizeof(int32_t), dev);
 			if (0)
