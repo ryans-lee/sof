@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 06JUL2020 #70");
+	comp_info(dev, "[RYAN] FW VER : 09JUL2020 #71");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -327,6 +327,14 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 			comp_info(dev,
 				"[RYAN] DSM_API_Set_Params() failed: id:%d error code = %i",
 				DSM_API_SETGET_EQ_BAND_ENABLE, (int)retCode);
+
+		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_RDC_AT_ROOMTEMP);
+		value[1] = 0x9191459;
+		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] DSM_API_Set_Params() failed: id:%d error code = %i",
+				DSM_API_SETGET_RDC_AT_ROOMTEMP, (int)retCode);
 	}
 #else
 	comp_info(dev, "[RYAN] DSM test initialized. ex:%d, ch_id:%d",
