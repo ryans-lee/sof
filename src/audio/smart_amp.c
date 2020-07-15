@@ -705,39 +705,64 @@ static int smart_amp_copy(struct comp_dev *dev)
 			/* do nothing */
 		} else {
 			int32_t *iv = (int32_t*) sad->feedback_buf->stream.r_ptr;
+			int16_t *iv_16 = (int16_t*) sad->feedback_buf->stream.r_ptr;
 			if (test_seq % 200 == 0 || test_seq % 200 == 1
 				|| test_seq % 200 == 2 || test_seq < 10) {
 				comp_info(dev, "[RYAN] smart_amp_copy() FB avail:%d",
 						avail_frames);				
 			}
-			if (1) {
+			if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+				int16_t *dsm_test_16 = (int16_t*) sad->dsm_iv;
+
+				for (x = 0 ; x < avail_frames ; x++)            {
+					/* Copying input CH0 */
+					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
+					dsm_test_16[4 * x + 1] = *iv;	// left I
+					iv_16++;
+					/* Copying input CH1 */
+					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
+					dsm_test_16[4 * x] = *iv;	// left V
+					iv_16++;
+					/* Copying input CH2 */
+					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
+					dsm_test_16[4 * x + 3] = *iv;		// right I
+					iv_16++;
+					/* Copying input CH3 */
+					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
+					dsm_test_16[4 * x + 2] = *iv;	// right V
+					iv_16++;
+					// VIVI order
+				}
+				if (1)
+				sof_dsm_fb_process(&sofDsmHandle, sad->dsm_iv,
+					avail_frames * 4, sizeof(int16_t), dev);
+			}else {
 				for (x = 0 ; x < avail_frames ; x++)            {
 					/* Copying input CH0 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x + 2] = *iv;	// right V
+					sad->dsm_iv[4 * x + 1] = *iv;	// left I
 					iv++;
 					/* Copying input CH1 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x + 3] = *iv;	// right I
+					sad->dsm_iv[4 * x] = *iv;	// left V
 					iv++;
 					/* Copying input CH2 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x] = *iv;		// left V
+					sad->dsm_iv[4 * x + 3] = *iv;		// right I
 					iv++;
 					/* Copying input CH3 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x + 1] = *iv;	// left I
+					sad->dsm_iv[4 * x + 2] = *iv;	// right V
 					iv++;
 				}
+				sof_dsm_fb_process_32(&sofDsmHandle, sad->dsm_iv,
+					avail_frames * 4, sizeof(int32_t), dev);
 			}
-			if (1) {
-			sof_dsm_fb_process_32(&sofDsmHandle, sad->dsm_iv,
-				avail_frames * 4, sizeof(int32_t), dev);
+
 			if (0)
 				smart_amp_process(dev, avail_frames,
 					sad->feedback_buf, sad->sink_buf,
 					sad->config.feedback_ch_map);
-			}
 		}
 		comp_update_buffer_consume(sad->feedback_buf, feedback_bytes);
 	}
@@ -794,25 +819,56 @@ static int smart_amp_copy(struct comp_dev *dev)
 	#ifdef CONFIG_MAXIM_DSM
 	int32_t *input = (int32_t*) sad->source_buf->stream.r_ptr;
 	int32_t *output = (int32_t*) sad->sink_buf->stream.w_ptr;
+	int16_t *input16 = (int16_t*) sad->source_buf->stream.r_ptr;
+	int16_t *output16 = (int16_t*) sad->sink_buf->stream.w_ptr;
+	int16_t *dsm_in_16 = (int16_t*) sad->dsm_in;
+	int16_t *dsm_test_16 = (int16_t*) sad->dsm_test;
 
 	if ( avail_frames != 48 )	{	// Just keep extra caution to avoid wrong memory access.
 		comp_info(dev,
 			"[RYAN] smart_amp_copy() size warning! size:%d", avail_frames);
 		/* do nothing */
 	} else {	
-		for (x = 0 ; x < avail_frames ; x++)            {
-			/* Copying input left */
-			input = (int32_t *)wrap_buffer_pointer(input, &sad->source_buf->stream);
-			sad->dsm_in[2 * x] = *input;
-			sad->dsm_test[2 * x] = sad->dsm_in[2 * x];
-			input++;
+		if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+			memset(dsm_in_16, 0, sizeof(int16_t) * DSM_PROC_SZ);
+			memset(dsm_test_16, 0, sizeof(int16_t) * DSM_PROC_SZ);
+			for (x = 0 ; x < avail_frames ; x++)            {
+				/* Copying input left */
+				input16 = (int16_t *)wrap_buffer_pointer(input16, &sad->source_buf->stream);
+				dsm_in_16[2 * x] = *input16;
+				dsm_test_16[2 * x] = dsm_in_16[2 * x];
+				input16++;
 
-			/* Copying input right */
-			input = (int32_t *)wrap_buffer_pointer(input, &sad->source_buf->stream);
-			sad->dsm_in[2 * x + 1] = *input;
-			sad->dsm_test[2 * x + 1] = sad->dsm_in[2 * x + 1];
-			input++;
+				/* Copying input right */
+				input16 = (int16_t *)wrap_buffer_pointer(input16, &sad->source_buf->stream);
+				dsm_in_16[2 * x + 1] = *input16;
+				dsm_test_16[2 * x + 1] = dsm_in_16[2 * x + 1];
+				input16++;
+			}
+			sof_dsm_ff_process(&sofDsmHandle, dsm_in_16, dsm_in_16,
+				avail_frames * 2, sizeof(int16_t), dev);
+
+		} else {
+			memset(sad->dsm_in, 0, sizeof(int32_t) * DSM_PROC_SZ);
+			memset(sad->dsm_test, 0, sizeof(int32_t) * DSM_PROC_SZ);
+			for (x = 0 ; x < avail_frames ; x++)            {
+				/* Copying input left */
+				input = (int32_t *)wrap_buffer_pointer(input, &sad->source_buf->stream);
+				sad->dsm_in[2 * x] = *input;
+				sad->dsm_test[2 * x] = sad->dsm_in[2 * x];
+				input++;
+
+				/* Copying input right */
+				input = (int32_t *)wrap_buffer_pointer(input, &sad->source_buf->stream);
+				sad->dsm_in[2 * x + 1] = 0;//*input;
+				sad->dsm_test[2 * x + 1] = sad->dsm_in[2 * x + 1];
+				input++;
+			}
+			sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in, sad->dsm_in,
+				avail_frames * 2, sizeof(int32_t), dev);
 		}
+
+//		dumb++;
 		#if 1
 		#ifndef DSM_BYPASS
 		#if 0
@@ -840,11 +896,20 @@ static int smart_amp_copy(struct comp_dev *dev)
 			}
 		}
 		#endif
-		sof_dsm_ff_process_32(&sofDsmHandle, sad->dsm_in, sad->dsm_in,
-			avail_frames * 2, sizeof(int32_t), dev);
+			
 		#if 0	// Copy 1st channel input to 2nd channel output.
-		for (x = 0 ; x < avail_frames ; x++)            {
-			sad->dsm_in[2 * x + 1] = sad->dsm_test[2 * x];
+		if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+			memset(dsm_in_16, 0, sizeof(int16_t) * DSM_PROC_SZ);
+			for (x = 0 ; x < avail_frames ; x++)            {
+				dsm_in_16[2 * x] = dsm_test_16[2 * x];
+				dsm_in_16[2 * x + 1] = dsm_test_16[2 * x + 1];
+			}
+		} else {
+			memset(sad->dsm_in, 0, sizeof(int32_t) * DSM_PROC_SZ);
+			for (x = 0 ; x < avail_frames ; x++)            {
+				sad->dsm_in[2 * x] = sad->dsm_test[2 * x];
+				sad->dsm_in[2 * x + 1] = sad->dsm_test[2 * x + 1];
+			}
 		}
 		#endif
 		#if 0
@@ -852,10 +917,10 @@ static int smart_amp_copy(struct comp_dev *dev)
 			if (test_dsm_onoff == 1)	// on
 				sad->dsm_in[2 * x + 1] = sad->dsm_test[2 * x];
 			else if (test_dsm_onoff == 2)	// off
-				sad->dsm_in[2 * x + 1] = (int32_t) (sad->dsm_test[2 * x] * 0.5);
+				sad->dsm_in[2 * x + 1] = (int32_t) (sad->dsm_test[2 * x] * 2);
 			else	{	// bypass
-				sad->dsm_in[2 * x] = sad->dsm_test[2 * x];
-				sad->dsm_in[2 * x + 1] = sad->dsm_test[2 * x + 1];
+				sad->dsm_in[2 * x] = sad->dsm_test[2 * x + 1];
+				sad->dsm_in[2 * x + 1] = sad->dsm_test[2 * x ];
 			}
 			// Copy DSM left input to the right output.
 		}
@@ -873,25 +938,45 @@ static int smart_amp_copy(struct comp_dev *dev)
 			comp_info(dev, "[RYAN] MODE : BYPASS (%d, %d)", test_seq, test_dsm_onoff);
 		#endif
 
-		for (x = 0 ; x < avail_frames ; x++)            {
-			/* Proceed CH0 */
-			output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
-			*output = sad->dsm_in[2 * x];
-			output++;
-			/* Proceed CH1 */
-			output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
-			*output = sad->dsm_in[2 * x + 1];
-			output++;
-			/* Proceed CH2 */		
-			output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
-			*output = 0;
-			output++;
-			/* Proceed CH3 */			
-			output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
-			*output = 0;
-			output++;
+		if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+			for (x = 0 ; x < avail_frames ; x++)            {
+				/* Proceed CH0 */
+				output16 = (int16_t *)wrap_buffer_pointer(output16, &sad->sink_buf->stream);
+				*output16 = dsm_in_16[2 * x];
+				output16++;
+				/* Proceed CH1 */
+				output16 = (int16_t *)wrap_buffer_pointer(output16, &sad->sink_buf->stream);
+				*output16 = dsm_in_16[2 * x + 1];
+				output16++;
+				/* Proceed CH2 */		
+				output16 = (int16_t *)wrap_buffer_pointer(output16, &sad->sink_buf->stream);
+				*output16 = 0;
+				output16++;
+				/* Proceed CH3 */			
+				output16 = (int16_t *)wrap_buffer_pointer(output16, &sad->sink_buf->stream);
+				*output16 = 0;
+				output16++;
+			}
+		} else {
+			for (x = 0 ; x < avail_frames ; x++)            {
+				/* Proceed CH0 */
+				output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
+				*output = sad->dsm_in[2 * x];
+				output++;
+				/* Proceed CH1 */
+				output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
+				*output = sad->dsm_in[2 * x + 1];
+				output++;
+				/* Proceed CH2 */		
+				output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
+				*output = 0;
+				output++;
+				/* Proceed CH3 */			
+				output = (int32_t *)wrap_buffer_pointer(output, &sad->sink_buf->stream);
+				*output = 0;
+				output++;
+			}
 		}
-
 	}
 	#endif
 

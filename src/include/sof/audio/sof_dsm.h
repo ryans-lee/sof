@@ -53,6 +53,8 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *dsmHandle,
 	void *in, void *out, int nSamples, int szSample, struct comp_dev *dev);
 void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 	int nSamples, int szSample, struct comp_dev *dev);
+void sof_dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
+	int nSamples, int szSample, struct comp_dev *dev);
 /* DSM Library Parameters */
 #define MAX_CHANNELS 2
 
