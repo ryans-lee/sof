@@ -156,7 +156,7 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 #ifdef USE_DSM_LIB
 	int x;
 
-	comp_info(dev, "[RYAN] FW VER : 14JUL2020 #72");
+	comp_info(dev, "[RYAN] FW VER : 16JUL2020 #73");
 	comp_info(dev, "[RYAN] sof_dsm_create. ex:%d, ch_id:%d",
 		sofDsmHandle->init, ch_id);
 
@@ -328,13 +328,21 @@ void sof_dsm_create(struct sof_dsm_struct_t *sofDsmHandle,
 				"[RYAN] DSM_API_Set_Params() failed: id:%d error code = %i",
 				DSM_API_SETGET_EQ_BAND_ENABLE, (int)retCode);
 
-		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_RDC_AT_ROOMTEMP);
-		value[1] = 0x9191459;
+		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_IV_FORMAT);
+		value[1] = 0;
 		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
 				"[RYAN] DSM_API_Set_Params() failed: id:%d error code = %i",
-				DSM_API_SETGET_RDC_AT_ROOMTEMP, (int)retCode);
+				DSM_API_SETGET_IV_FORMAT, (int)retCode);
+
+		value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_THERMAL_ENABLE);
+		value[1] = 0;
+		retCode = DSM_API_Set_Params((void *)dsmHandle, 1, value);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] DSM_API_Set_Params() failed: id:%d error code = %i",
+				DSM_API_SETGET_THERMAL_ENABLE, (int)retCode);
 	}
 #else
 	comp_info(dev, "[RYAN] DSM test initialized. ex:%d, ch_id:%d",
@@ -359,7 +367,7 @@ void dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 	int x;
 	int nSamples_per_channel = (nSamples >> 1);
 
-	if (sofDsmHandle->seq_ff % 200 == 0)
+	if (sofDsmHandle->seq_ff % 1000 == 0)
 		comp_info(dev, "[RYAN] DSM FF. nSamples:%d (%d, %d), initialized:%d",
 			nSamples, input[0], input[1], sofDsmHandle->init);
 
@@ -381,7 +389,7 @@ void dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 void dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, short *input,
 	int nSamples, int szSamples, struct comp_dev *dev)
 {
-	if (sofDsmHandle->seq_fb % 200 == 0)
+	if (sofDsmHandle->seq_fb % 1000 == 0)
 		comp_info(dev, "[RYAN] DSM FB nSamples:%d (%d, %d), initialized:%d",
 			nSamples, input[0], input[1], sofDsmHandle->init);
 	sofDsmHandle->seq_fb++;
@@ -418,22 +426,14 @@ static void dsm_test_rms_print(short *input, int nSamples, int *rms_left, int *r
 	}
 }
 
-short iData[SZ_BUFFER];
-short vData[SZ_BUFFER];
-int buf_fb32[SZ_IV_BUFFER];
-short buf_fb16[SZ_IV_BUFFER];
-int fb_avail = 0;
 void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
 	DSM_API_MESSAGE retCode;
-	#if 0
 	int *buf = sofDsmHandle->buf_fb32;
 	int *wrPtr = &(sofDsmHandle->fb_avail);
-	#else
-	int *buf = &buf_fb32[0];
-	int *wrPtr = &fb_avail;
-	#endif
+	short *vData = sofDsmHandle->vData;
+	short *iData = sofDsmHandle->iData;
 	int x;
 
 	if (*wrPtr + nSamples <= SZ_IV_BUFFER) {
@@ -453,16 +453,16 @@ void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 		/* Do FF processing */
 		if (sofDsmHandle->init) {
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				vData[x] = (buf[4 * (*wrPtr - SZ_BUFFER + x)] >> 16);
-				iData[x] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 1] >> 16);
-				vData[x + SZ_PROC_BUF] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 2] >> 16);
-				iData[x + SZ_PROC_BUF] = (buf[4 * (*wrPtr - SZ_BUFFER + x) + 3] >> 16);
+				vData[x] = (buf[4 * (*wrPtr - SZ_IV_BUFFER + x) + 1] >> 16);
+				iData[x] = (buf[4 * (*wrPtr - SZ_IV_BUFFER + x)] >> 16);
+				vData[x + SZ_PROC_BUF] = (buf[4 * (*wrPtr - SZ_IV_BUFFER + x) + 3] >> 16);
+				iData[x + SZ_PROC_BUF] = (buf[4 * (*wrPtr - SZ_IV_BUFFER + x) + 2] >> 16);
 			}
-			if (sofDsmHandle->seq_fb % 200 == 0 || sofDsmHandle->seq_fb < 20)
+			if (sofDsmHandle->seq_fb % 1000 == 0 || sofDsmHandle->seq_fb < 20)
 				comp_info(dev, "[RYAN] DSM FB +++ . nSamples:%d, FrameSize:%d, ch:%d, seq:%d",
 					iBSamples, fbFrameSizeSamples,
 					sInitParam.iChannels, sofDsmHandle->seq);
-
+			channelMask = 0;
 			iBSamples = fbFrameSizeSamples*sInitParam.iChannels;
 			retCode = DSM_API_FB_process(dsmHandle,
 				channelMask, iData, vData, &iBSamples);
@@ -475,44 +475,58 @@ void sof_dsm_fb_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 		*wrPtr -= SZ_IV_BUFFER;
 		sofDsmHandle->seq_fb++;
 
+
 		#if 1	// param update.
+		if (sofDsmHandle->seq_fb % 20 != 0)
+			return;
 		int cmdBlock[1+MAX_CHANNELS];
+
+	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_EXCURSION);
+		retCode = DSM_API_Get_Params(dsmHandle,
+			1, (void *)cmdBlock);
+		if (retCode != DSM_API_OK)
+			comp_info(dev,
+				"[RYAN] 32bit DSM_API_Get_Params() failed: id:%d error code = %i",
+				x, (int)retCode);
+		else
+			comp_info(dev, "[RYAN] 32bit $DSM_API_Get_Params(ID:EXCUR) (L:%x, R:%x) Q27", cmdBlock[1], cmdBlock[2]);
+
 	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_COILTEMP);
 		retCode = DSM_API_Get_Params(dsmHandle,
 			1, (void *)cmdBlock);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
-				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				"[RYAN] 32bit DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
-			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:COILTEMP) (L:%x, R:%x) Q19", cmdBlock[1], cmdBlock[2]);
+			comp_info(dev, "[RYAN] 32bit $DSM_API_Get_Params(ID:COILTEMP) (L:%x, R:%x) Q19", cmdBlock[1], cmdBlock[2]);
 
 	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_DC_RES);
 		retCode = DSM_API_Get_Params(dsmHandle,
 			1, (void *)cmdBlock);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
-				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				"[RYAN] 32bit DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
-			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:DC_RES) (L:%x, R:%x) Q27", cmdBlock[1], cmdBlock[2]);
+			comp_info(dev, "[RYAN] 32bit $DSM_API_Get_Params(ID:DC_RES) (L:%x, R:%x) Q27", cmdBlock[1], cmdBlock[2]);
 
 	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_FC);
 		retCode = DSM_API_Get_Params(dsmHandle,
 			1, (void *)cmdBlock);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
-				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				"[RYAN] 32bit DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
-			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:ADAPTIVE_FC) (L:%x, R:%x) Q9", cmdBlock[1], cmdBlock[2]);
+			comp_info(dev, "[RYAN] 32bit $DSM_API_Get_Params(ID:ADAPTIVE_FC) (L:%x, R:%x) Q9", cmdBlock[1], cmdBlock[2]);
 
 	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_Q);
 		retCode = DSM_API_Get_Params(dsmHandle,
 			1, (void *)cmdBlock);
 		if (retCode != DSM_API_OK)
 			comp_info(dev,
-				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
+				"[RYAN] 32bit DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
 			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:ADAPTIVE_Q) (L:%x, R:%x) Q29", cmdBlock[1], cmdBlock[2]);
@@ -524,13 +538,10 @@ void sof_dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 	int nSamples, int szSample, struct comp_dev *dev)
 {
 	DSM_API_MESSAGE retCode;
-	#if 0
-	int *buf = sofDsmHandle->buf_fb32;
+	short *buf = sofDsmHandle->buf_fb;
 	int *wrPtr = &(sofDsmHandle->fb_avail);
-	#else
-	short *buf = &buf_fb16[0];
-	int *wrPtr = &fb_avail;
-	#endif
+	short *vData = sofDsmHandle->vData;
+	short *iData = sofDsmHandle->iData;
 	int x;
 
 	if (*wrPtr + nSamples <= SZ_IV_BUFFER) {
@@ -550,12 +561,12 @@ void sof_dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 		/* Do FF processing */
 		if (sofDsmHandle->init) {
 			for (x = 0; x < SZ_PROC_BUF; x++) {
-				vData[x] = buf[4 * (*wrPtr - SZ_BUFFER + x)];
-				iData[x] = buf[4 * (*wrPtr - SZ_BUFFER + x) + 1];
-				vData[x + SZ_PROC_BUF] = buf[4 * (*wrPtr - SZ_BUFFER + x) + 2];
-				iData[x + SZ_PROC_BUF] = buf[4 * (*wrPtr - SZ_BUFFER + x) + 3];
+				vData[x] = buf[4 * (*wrPtr - SZ_IV_BUFFER + x) + 1];
+				iData[x] = buf[4 * (*wrPtr - SZ_IV_BUFFER + x)];
+				vData[x + SZ_PROC_BUF] = buf[4 * (*wrPtr - SZ_IV_BUFFER + x) + 3];
+				iData[x + SZ_PROC_BUF] = buf[4 * (*wrPtr - SZ_IV_BUFFER + x) + 2];
 			}
-			if (sofDsmHandle->seq_fb % 200 == 0 || sofDsmHandle->seq_fb < 20)
+			if (sofDsmHandle->seq_fb % 1000 == 0 || sofDsmHandle->seq_fb < 20)
 				comp_info(dev, "[RYAN] DSM FB +++ . nSamples:%d, FrameSize:%d, ch:%d, seq:%d",
 					iBSamples, fbFrameSizeSamples,
 					sInitParam.iChannels, sofDsmHandle->seq);
@@ -582,7 +593,7 @@ void sof_dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
-			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:COILTEMP) (L:%x, R:%x) Q19", cmdBlock[1], cmdBlock[2]);
+			comp_info(dev, "[RYAN] 16bit $DSM_API_Get_Params(ID:COILTEMP) (L:%x, R:%x) Q19", cmdBlock[1], cmdBlock[2]);
 
 	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_DC_RES);
 		retCode = DSM_API_Get_Params(dsmHandle,
@@ -592,7 +603,7 @@ void sof_dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
-			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:DC_RES) (L:%x, R:%x) Q27", cmdBlock[1], cmdBlock[2]);
+			comp_info(dev, "[RYAN] 16bit $DSM_API_Get_Params(ID:DC_RES) (L:%x, R:%x) Q27", cmdBlock[1], cmdBlock[2]);
 
 	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_FC);
 		retCode = DSM_API_Get_Params(dsmHandle,
@@ -602,7 +613,7 @@ void sof_dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
-			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:ADAPTIVE_FC) (L:%x, R:%x) Q9", cmdBlock[1], cmdBlock[2]);
+			comp_info(dev, "[RYAN] 16bit $DSM_API_Get_Params(ID:ADAPTIVE_FC) (L:%x, R:%x) Q9", cmdBlock[1], cmdBlock[2]);
 
 	       	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_Q);
 		retCode = DSM_API_Get_Params(dsmHandle,
@@ -612,7 +623,7 @@ void sof_dsm_fb_process(struct sof_dsm_struct_t *sofDsmHandle, void *in,
 				"[RYAN] DSM_API_Get_Params() failed: id:%d error code = %i",
 				x, (int)retCode);
 		else
-			comp_info(dev, "[RYAN] $DSM_API_Get_Params(ID:ADAPTIVE_Q) (L:%x, R:%x) Q29", cmdBlock[1], cmdBlock[2]);
+			comp_info(dev, "[RYAN] 16bit $DSM_API_Get_Params(ID:ADAPTIVE_Q) (L:%x, R:%x) Q29", cmdBlock[1], cmdBlock[2]);
 		#endif
 	}
 }
@@ -647,7 +658,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 	if (*wrPtr >= SZ_BUFFER) {
 		/* Do FF processing */
 		if (sofDsmHandle->init) {
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20) {
+			if (0) {//(sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20) {
 				dsm_test_rms_print32_raw(buf, SZ_PROC_BUF, &rms_left, &rms_right);
 				comp_info(dev,
 					"[RYAN] DSM FF reference (%d, %d)",
@@ -659,15 +670,15 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 
 			}
 
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
+			if (0) {//if (sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20)
 				dsm_test_rms_print(input, SZ_PROC_BUF, &rms_left, &rms_right);
-
+			}
 			#ifdef USE_DSM_LIB
 			DSM_API_MESSAGE retCode;
 
 			iFSamples = ffFrameSizeSamples*sInitParam.iChannels;
 
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
+			if (sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20)
 				comp_info(dev, "[RYAN] DSM FF +++ . nSamples:%d, FrameSize:%d, ch:%d, seq:%d",
 					iFSamples, ffFrameSizeSamples,
 					sInitParam.iChannels, sofDsmHandle->seq);
@@ -690,7 +701,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 			#endif
 			/* process done */
 
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20) {
+			if (0) {//if (sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20) {
 				sof_dsm_print_params((void *)dsmHandle, dev);
 
 				dsm_test_rms_print(output, SZ_PROC_BUF, &rms_left_out, &rms_right_out);
@@ -699,7 +710,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 					rms_left, rms_left_out, rms_right, rms_right_out);
 			}
 
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
+			if (0) {//if (sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20)
 				comp_info(dev,
 					"[RYAN] DSM FF    . ffFrameSizeSamples:%d, chMask:%d, iFSampes:%d, oFSamples:%d",
 					ffFrameSizeSamples,
@@ -708,6 +719,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 					"[RYAN] DSM FF ---. retCode:%d ([0]%d, [1]%d)",
 					retCode,
 					output[0], output[1]);
+			}
 
 			/* Re-ordering back */
 			for (x = 0; x < SZ_PROC_BUF; x++) {
@@ -739,6 +751,7 @@ void sof_dsm_ff_process_32(struct sof_dsm_struct_t *sofDsmHandle, void *in, void
 
 		*wrPtr -= SZ_BUFFER;
 		sofDsmHandle->seq++;
+		sofDsmHandle->seq_fb++;
 	}	
 
 	/* Output buffer preparation */
@@ -803,7 +816,7 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *o
 
 			iFSamples = ffFrameSizeSamples*sInitParam.iChannels;
 
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
+			if (sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20)
 				comp_info(dev, "[RYAN] DSM FF +++ . nSamples:%d, ch:%d,(%d) seq:%d",
 				iFSamples, sInitParam.iChannels,
 				input[0], sofDsmHandle->seq);
@@ -815,15 +828,11 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *o
 				channelMask, input, &iFSamples,
 				output, &oFSamples);
 
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
+			if (sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20)
 				comp_info(dev,
 					"[RYAN] DSM FF    . ffFrameSizeSamples:%d, chMask:%d, iFSampes:%d, oFSamples:%d",
 					ffFrameSizeSamples,
 					channelMask, iFSamples, oFSamples);
-				comp_info(dev,
-					"[RYAN] DSM FF ---. retCode:%d ([0]%d, [1]%d)",
-					retCode,
-					output[0], output[1]);
 			#else
 			dsm_ff_process(
 				(struct sof_dsm_struct_t *) sofDsmHandle,
@@ -837,7 +846,7 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *o
 			}
 
 		} else {
-			if (sofDsmHandle->seq % 200 == 0 || sofDsmHandle->seq < 20)
+			if (sofDsmHandle->seq % 1000 == 0 || sofDsmHandle->seq < 20)
 				comp_info(dev,
 					"[RYAN] DSM FF process skipped. %d, seq:%d",
 					sofDsmHandle->init, sofDsmHandle->seq);
@@ -861,6 +870,7 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *sofDsmHandle, void *in, void *o
 
 		*wrPtr -= SZ_BUFFER;
 		sofDsmHandle->seq++;
+		sofDsmHandle->seq_fb++;
 	}	
 
 	/* Output buffer preparation */

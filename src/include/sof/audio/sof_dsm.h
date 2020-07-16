@@ -10,22 +10,37 @@
 
 //#define DSM_BYPASS
 #define USE_DSM_LIB
+//#define DEBUG_ROUTE_IV_TO_OUTPUT
 
 #define SZ_PROC_BUF 240
 #define SZ_BUFFER (SZ_PROC_BUF * 2)
 #define SZ_IV_BUFFER (SZ_PROC_BUF * 4)
 
+#ifdef DEBUG_ROUTE_IV_TO_OUTPUT
+#define IV_BACKUP_BUF_SZ	SZ_PROC_BUF * 5
+#define LEFT_V_TO_RIGHT	1
+#define LEFT_I_TO_RIGHT		2
+#define RIGHT_V_TO_LEFT	3
+#define RIGHT_I_TO_LEFT		4
+#define ROUTE_TYPE	LEFT_V_TO_RIGHT
+#endif
+
 struct sof_dsm_struct_t {
 	short buf_ff[SZ_BUFFER];
 	short buf_ff_out[SZ_BUFFER];
 	short stage[SZ_BUFFER];
-
+	
 	int buf_ff32[SZ_BUFFER];
 	int buf_ff_out32[SZ_BUFFER];
 	int stage32[SZ_BUFFER];
-	
+
+	short buf_fb[SZ_IV_BUFFER];
+	int buf_fb32[SZ_IV_BUFFER];
+
 	int ff_avail;
 	int ff_rdy;
+	int fb_avail;
+
 	bool init;
 	/* Debug purpose */
 	int seq_ff;
@@ -36,6 +51,14 @@ struct sof_dsm_struct_t {
 	bool tone_gen_toggle1;
 	int tone_gen_seq0;
 	int tone_gen_seq1;
+	#ifdef DEBUG_ROUTE_IV_TO_OUTPUT
+	int iv_wptr;
+	int iv_rptr;
+	short iv_backup[IV_BACKUP_BUF_SZ];
+	#endif
+
+	short iData[SZ_BUFFER];
+	short vData[SZ_BUFFER];
 };
 
 void sof_dsm_onoff(struct comp_dev *dev, int on);

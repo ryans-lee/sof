@@ -581,7 +581,7 @@ static int smart_amp_process_s32(struct comp_dev *dev,
 	int i;
 	int j;
 
-	comp_info(dev, "smart_amp_process_s32()");
+//	comp_info(dev, "smart_amp_process_s32()");
 
 	for (i = 0; i < frames; i++) {
 		for (j = 0 ; j < sad->out_channels; j++) {
@@ -649,8 +649,10 @@ static int smart_amp_copy(struct comp_dev *dev)
 
 	#ifdef CONFIG_MAXIM_DSM
 	int x;
-	if (test_seq % 200 == 0 || test_seq % 200 == 1
-		|| test_seq % 200 == 2 || test_seq < 10)
+	#endif
+	#if 0//def CONFIG_MAXIM_DSM
+	if (test_seq % 1000 == 0 || test_seq % 1000 == 1
+		|| test_seq % 1000 == 2 || test_seq < 10)
 		comp_info(dev,
 			"[RYAN] smart_amp_copy() +++ seq:%d", test_seq);
 	#endif
@@ -683,6 +685,10 @@ static int smart_amp_copy(struct comp_dev *dev)
 		avail_passthrough_frames);
 
 	buffer_lock(sad->feedback_buf, &feedback_flags);
+	#ifdef DEBUG_ROUTE_IV_TO_OUTPUT	// Route left channel V to right channel out.
+	if (sofDsmHandle.iv_rptr == 0 && sofDsmHandle.iv_wptr ==0)
+		sofDsmHandle.iv_wptr = SZ_PROC_BUF;
+	#endif
 	if (sad->feedback_buf->source->state == dev->state) {
 		/* feedback */
 		avail_feedback_frames = sad->feedback_buf->stream.avail /
@@ -699,6 +705,27 @@ static int smart_amp_copy(struct comp_dev *dev)
 		comp_dbg(dev, "smart_amp_copy(): processing %d feedback bytes",
 			feedback_bytes);
 
+		#ifdef CONFIG_MAXIM_DSM
+		struct comp_buffer *fb = sad->feedback_buf;
+		if (test_seq % 1000 == 0 || test_seq % 1000 == 1
+			|| test_seq % 1000 == 2 || test_seq < 10) {
+			comp_info(dev, "[RYAN] smart_amp_copy() FB avail:%d, feedback_bytes:%d",
+				avail_frames, feedback_bytes);
+
+			comp_info(dev, "[RYAN] smart_amp_copy() FB w_ptr:%p, r_ptr:%p, addr:%p, end_addr:%p",
+				(uintptr_t) fb->stream.w_ptr,
+				(uintptr_t) fb->stream.r_ptr,
+				(uintptr_t) fb->stream.addr,
+				(uintptr_t) fb->stream.end_addr);
+
+			comp_info(dev, "[RYAN] smart_amp_copy() FB fb->stream.frame_fmt :%d, avail:%d, free:%d, size:%d",
+				fb->stream.frame_fmt,
+				fb->stream.avail,
+				fb->stream.free,
+				fb->stream.size);
+		}
+		#endif
+
 		if ( avail_frames != 48 )	{	// Just keep extra caution to avoid wrong memory access.
 			comp_info(dev,
 				"[RYAN] smart_amp_copy() size warning! size:%d", avail_frames);
@@ -706,54 +733,51 @@ static int smart_amp_copy(struct comp_dev *dev)
 		} else {
 			int32_t *iv = (int32_t*) sad->feedback_buf->stream.r_ptr;
 			int16_t *iv_16 = (int16_t*) sad->feedback_buf->stream.r_ptr;
-			if (test_seq % 200 == 0 || test_seq % 200 == 1
-				|| test_seq % 200 == 2 || test_seq < 10) {
-				comp_info(dev, "[RYAN] smart_amp_copy() FB avail:%d",
-						avail_frames);				
-			}
-			if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+
+			if(sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
 				int16_t *dsm_test_16 = (int16_t*) sad->dsm_iv;
 
 				for (x = 0 ; x < avail_frames ; x++)            {
 					/* Copying input CH0 */
 					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
-					dsm_test_16[4 * x + 1] = *iv;	// left I
+					dsm_test_16[4 * x] = *iv_16;
 					iv_16++;
 					/* Copying input CH1 */
 					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
-					dsm_test_16[4 * x] = *iv;	// left V
+					dsm_test_16[4 * x + 1] = *iv_16;
 					iv_16++;
 					/* Copying input CH2 */
 					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
-					dsm_test_16[4 * x + 3] = *iv;		// right I
+					dsm_test_16[4 * x + 2] = *iv_16;
 					iv_16++;
 					/* Copying input CH3 */
 					iv_16 = (int16_t *)wrap_buffer_pointer(iv_16, &sad->feedback_buf->stream);
-					dsm_test_16[4 * x + 2] = *iv;	// right V
+					dsm_test_16[4 * x + 3] = *iv_16;
 					iv_16++;
-					// VIVI order
+					// IVIV order
+
 				}
-				if (1)
 				sof_dsm_fb_process(&sofDsmHandle, sad->dsm_iv,
 					avail_frames * 4, sizeof(int16_t), dev);
 			}else {
 				for (x = 0 ; x < avail_frames ; x++)            {
 					/* Copying input CH0 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x + 1] = *iv;	// left I
+					sad->dsm_iv[4 * x] = *iv;
 					iv++;
 					/* Copying input CH1 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x] = *iv;	// left V
+					sad->dsm_iv[4 * x + 1] = *iv;
 					iv++;
 					/* Copying input CH2 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x + 3] = *iv;		// right I
+					sad->dsm_iv[4 * x + 2] = *iv;
 					iv++;
 					/* Copying input CH3 */
 					iv = (int32_t *)wrap_buffer_pointer(iv, &sad->feedback_buf->stream);
-					sad->dsm_iv[4 * x + 2] = *iv;	// right V
+					sad->dsm_iv[4 * x + 3] = *iv;
 					iv++;
+					// IVIV order
 				}
 				sof_dsm_fb_process_32(&sofDsmHandle, sad->dsm_iv,
 					avail_frames * 4, sizeof(int32_t), dev);
@@ -783,8 +807,9 @@ static int smart_amp_copy(struct comp_dev *dev)
 	struct comp_buffer *source = sad->source_buf;
 	struct comp_buffer *sink = sad->sink_buf;
 
-	if (test_seq % 200 == 0 || test_seq % 200 == 1
-		|| test_seq % 200 == 2 || test_seq < 10) {
+	
+	if (test_seq % 1000 == 0 || test_seq % 1000 == 1
+		|| test_seq % 1000 == 2 || test_seq < 10) {
 		comp_info(dev, "[RYAN] smart_amp_copy() avail:%d, source_bytes:%d, sink_bytes:%d, test_toggle:%d",
 			avail_frames, source_bytes, sink_bytes,
 			test_toggle);
@@ -829,7 +854,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 			"[RYAN] smart_amp_copy() size warning! size:%d", avail_frames);
 		/* do nothing */
 	} else {	
-		if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+		if(sad->source_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
 			memset(dsm_in_16, 0, sizeof(int16_t) * DSM_PROC_SZ);
 			memset(dsm_test_16, 0, sizeof(int16_t) * DSM_PROC_SZ);
 			for (x = 0 ; x < avail_frames ; x++)            {
@@ -898,7 +923,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 		#endif
 			
 		#if 0	// Copy 1st channel input to 2nd channel output.
-		if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+		if(sad->source_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
 			memset(dsm_in_16, 0, sizeof(int16_t) * DSM_PROC_SZ);
 			for (x = 0 ; x < avail_frames ; x++)            {
 				dsm_in_16[2 * x] = dsm_test_16[2 * x];
@@ -938,7 +963,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 			comp_info(dev, "[RYAN] MODE : BYPASS (%d, %d)", test_seq, test_dsm_onoff);
 		#endif
 
-		if(1) {//sad->feedback_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
+		if(sad->source_buf->stream.frame_fmt == SOF_IPC_FRAME_S16_LE) {
 			for (x = 0 ; x < avail_frames ; x++)            {
 				/* Proceed CH0 */
 				output16 = (int16_t *)wrap_buffer_pointer(output16, &sad->sink_buf->stream);
@@ -984,11 +1009,13 @@ static int smart_amp_copy(struct comp_dev *dev)
 	comp_update_buffer_consume(sad->source_buf, source_bytes);
 	comp_update_buffer_produce(sad->sink_buf, sink_bytes);
 
-	#ifdef CONFIG_MAXIM_DSM
-	if (test_seq % 200 == 0 || test_seq % 200 == 1
+	#if 0//def CONFIG_MAXIM_DSM
+	if (test_seq % 1000 == 0 || test_seq % 1000 == 1
 		|| test_seq % 200 == 2 || test_seq < 10)
 		comp_info(dev,
 			"[RYAN] smart_amp_copy() --- seq:%d", test_seq);
+	#endif
+	#ifdef CONFIG_MAXIM_DSM
 	test_seq++;
 	if (test_seq >= 2000)	{
 		test_seq = 0;
