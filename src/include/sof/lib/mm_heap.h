@@ -34,7 +34,7 @@ struct block_hdr {
 } __packed;
 
 struct block_map {
-	uint16_t block_size;	/* size of block in bytes */
+	uint32_t block_size;	/* size of block in bytes */
 	uint16_t count;		/* number of blocks in map */
 	uint16_t free_count;	/* number of free blocks */
 	uint16_t first_free;	/* index of first free block */
