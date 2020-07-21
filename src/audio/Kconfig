@@ -14,6 +14,12 @@ config COMP_VOLUME
 	help
 	  Select for Volume component
 
+config MAXIM_DSM
+	bool "Maxim DSM component"
+	default y
+	help
+	  Enable Maxim Dynamic Speaker Management
+
 config COMP_SRC
 	bool "SRC component"
 	default y
