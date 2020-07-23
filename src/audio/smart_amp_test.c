@@ -8,6 +8,9 @@
 #include <sof/trace/trace.h>
 #include <sof/drivers/ipc.h>
 #include <sof/ut.h>
+#ifdef CONFIG_MAXIM_DSM
+#include <sof/audio/sof_dsm.h>
+#endif
 
 static const struct comp_driver comp_smart_amp;
 
@@ -30,6 +33,9 @@ struct smart_amp_data {
 
 	uint32_t in_channels;
 	uint32_t out_channels;
+#ifdef CONFIG_MAXIM_DSM
+	struct sof_dsm_struct_t *sof_dsm_handle;
+#endif
 };
 
 static struct comp_dev *smart_amp_new(const struct comp_driver *drv,
@@ -77,6 +83,141 @@ static struct comp_dev *smart_amp_new(const struct comp_driver *drv,
 
 	memcpy_s(&sad->config, sizeof(struct sof_smart_amp_config), cfg, bs);
 
+#ifdef CONFIG_MAXIM_DSM
+	/* Memory allocation for DSM */
+	if (!sad->sof_dsm_handle) {
+		int mem_sz;
+		//#define USE_ZONE_RUNTIME
+		#ifndef USE_ZONE_RUNTIME
+		sad->sof_dsm_handle = rballoc(0, SOF_MEM_CAPS_RAM,
+			sizeof(struct sof_dsm_struct_t));
+		#else
+		sad->sof_dsm_handle = rzalloc(SOF_MEM_ZONE_RUNTIME, 0,
+			SOF_MEM_CAPS_RAM,
+			sizeof(struct sof_dsm_struct_t));
+		#endif
+		if (!sad->sof_dsm_handle) {
+			rfree(dev);
+			return NULL;
+		}
+		memset(sad->sof_dsm_handle, 0, sizeof(struct sof_dsm_struct_t));
+		mem_sz = sof_dsm_get_memory_size(sad->sof_dsm_handle, dev);
+		#ifndef USE_ZONE_RUNTIME
+		sad->sof_dsm_handle->dsmHandle = rballoc(0, SOF_MEM_CAPS_RAM,
+			mem_sz);
+		#else
+		sad->sof_dsm_handle->dsmHandle =
+			rzalloc(SOF_MEM_ZONE_RUNTIME, 0,
+				SOF_MEM_CAPS_RAM,
+				mem_sz);
+		#endif
+		if (!sad->sof_dsm_handle->dsmHandle) {
+			rfree(dev);
+			return NULL;
+		}
+		memset(sad->sof_dsm_handle->dsmHandle, 0, mem_sz);
+
+		sad->sof_dsm_handle->buf.sof_a_frame_in =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+				SOF_FF_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.sof_a_frame_in) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.sof_a_frame_out =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+				SOF_FF_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.sof_a_frame_out) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.sof_a_frame_iv =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+				SOF_FB_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.sof_a_frame_iv) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.stage =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FF_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.stage) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.stage_fb =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FB_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.stage_fb) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.input = 
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FF_BUF_SZ * sizeof(int16_t));
+		if (!sad->sof_dsm_handle->buf.input) {
+			rfree(dev);
+			return NULL;
+		}
+		sad->sof_dsm_handle->buf.output =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FF_BUF_SZ * sizeof(int16_t));
+		if (!sad->sof_dsm_handle->buf.output) {
+			rfree(dev);
+			return NULL;
+		}
+		sad->sof_dsm_handle->buf.voltage =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FF_BUF_SZ * sizeof(int16_t));
+		if (!sad->sof_dsm_handle->buf.voltage) {
+			rfree(dev);
+			return NULL;
+		}
+		sad->sof_dsm_handle->buf.current =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FF_BUF_SZ * sizeof(int16_t));
+		if (!sad->sof_dsm_handle->buf.current) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.ff.buf =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FF_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.ff.buf) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.ff_out.buf =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FF_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.ff_out.buf) {
+			rfree(dev);
+			return NULL;
+		}
+
+		sad->sof_dsm_handle->buf.fb.buf =
+			rballoc(0, SOF_MEM_CAPS_RAM,
+			DSM_FB_BUF_DB_SZ* sizeof(int32_t));
+		if (!sad->sof_dsm_handle->buf.fb.buf) {
+			rfree(dev);
+			return NULL;
+		}
+
+		comp_info(dev, "[DSM] memory allocation completed. sof:%p (size: %d bytes), dsm:%p (size: %d bytes)",
+			(uintptr_t) sad->sof_dsm_handle,
+			sizeof(struct sof_dsm_struct_t),
+			(uintptr_t) sad->sof_dsm_handle->dsmHandle,
+			mem_sz);
+	}
+	sof_dsm_inf_create(sad->sof_dsm_handle, dev);
+#endif
 	dev->state = COMP_STATE_READY;
 
 	return dev;
@@ -453,9 +594,15 @@ static int smart_amp_copy(struct comp_dev *dev)
 		comp_dbg(dev, "smart_amp_copy(): processing %d feedback frames (avail_passthrough_frames: %d)",
 			 avail_frames, avail_passthrough_frames);
 
+		#ifdef CONFIG_MAXIM_DSM
+		sof_dsm_inf_fb_copy(dev, avail_frames,
+			sad->feedback_buf, sad->sink_buf,
+			sad->config.feedback_ch_map, sad->sof_dsm_handle);
+		#else
 		sad->process(dev, &sad->feedback_buf->stream,
 			     &sad->sink_buf->stream, avail_frames,
 			     sad->config.feedback_ch_map);
+		#endif
 
 		comp_update_buffer_consume(sad->feedback_buf, feedback_bytes);
 	}
@@ -472,8 +619,13 @@ static int smart_amp_copy(struct comp_dev *dev)
 	buffer_unlock(sad->sink_buf, sink_flags);
 
 	/* process data */
+	#ifdef CONFIG_MAXIM_DSM
+	sof_dsm_inf_ff_copy(dev, avail_frames, sad->source_buf, sad->sink_buf,
+			  sad->config.source_ch_map, sad->sof_dsm_handle);
+	#else
 	sad->process(dev, &sad->source_buf->stream, &sad->sink_buf->stream,
 		     avail_frames, sad->config.source_ch_map);
+	#endif
 
 	/* source/sink buffer pointers update */
 	comp_update_buffer_consume(sad->source_buf, source_bytes);
@@ -537,7 +689,11 @@ static int smart_amp_prepare(struct comp_dev *dev)
 		comp_err(dev, "smart_amp_prepare(): get_smart_amp_process failed");
 		return -EINVAL;
 	}
-
+#ifdef CONFIG_MAXIM_DSM
+	comp_info(dev, "[DSM] smart_amp_prepare() sof:%p",
+		(uintptr_t) sad->sof_dsm_handle);
+	sof_dsm_inf_reset(sad->sof_dsm_handle, dev);
+#endif
 	return 0;
 }
 

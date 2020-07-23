@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 if(NOT CONFIG_LIBRARY)
+	if(CONFIG_MAXIM_DSM)
+		add_subdirectory(dsm)
+	endif()
 	add_local_sources(sof
 		host.c
 		pipeline.c
@@ -61,6 +64,7 @@ if(NOT CONFIG_LIBRARY)
 		)
 	endif()
 	if(CONFIG_COMP_TEST_SMART_AMP)
+		sof_add_static_library(dsm ./dsm/libdsm.a)
 		add_local_sources(sof
 			smart_amp_test.c
 		)
@@ -112,7 +116,7 @@ check_optimization(fma -mfma -DOPS_FMA)
 check_optimization(hifi2ep -mhifi2ep -DOPS_HIFI2EP)
 check_optimization(hifi3 -mhifi3 -DOPS_HIFI3)
 
-set(sof_audio_modules volume src asrc eq-fir eq-iir dcblock)
+set(sof_audio_modules volume src asrc eq-fir eq-iir dcblock dsm)
 
 # sources for each module
 set(volume_sources volume/volume.c volume/volume_generic.c)
