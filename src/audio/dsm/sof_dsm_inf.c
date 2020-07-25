@@ -17,8 +17,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "dsm_api.h"
-#include "dsm_api_types.h"
+#include "dsm_api_public.h"
 
 static void *_wrap_buf_ptr(void *ptr, const struct audio_stream *buffer)
 {
@@ -28,43 +27,43 @@ static void *_wrap_buf_ptr(void *ptr, const struct audio_stream *buffer)
 	return ptr;
 }
 
-int sof_dsm_inf_reset(struct sof_dsm_struct_t *hSof, struct comp_dev *dev)
+int sof_dsm_inf_reset(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev)
 {
-	if (!hSof->dsm_init)
+	if (!hsof_dsm->dsm_init)
 		return -EINVAL;
 
-	comp_info(dev, "[DSM] DSM Reset (handle:%p)", (uintptr_t) hSof);
+	comp_dbg(dev, "[DSM] DSM Reset (handle:%p)", (uintptr_t)hsof_dsm);
 
-	memset(hSof->buf.sof_a_frame_in, 0, SOF_FF_BUF_DB_SZ * sizeof(int32_t));
-	memset(hSof->buf.sof_a_frame_out, 0, SOF_FF_BUF_DB_SZ * sizeof(int32_t));
-	memset(hSof->buf.sof_a_frame_iv, 0, SOF_FB_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.sof_a_frame_in, 0, SOF_FF_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.sof_a_frame_out, 0, SOF_FF_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.sof_a_frame_iv, 0, SOF_FB_BUF_DB_SZ * sizeof(int32_t));
 
-	memset(hSof->buf.stage, 0, DSM_FF_BUF_DB_SZ * sizeof(int32_t));
-	memset(hSof->buf.stage_fb, 0, DSM_FB_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.stage, 0, DSM_FF_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.stage_fb, 0, DSM_FB_BUF_DB_SZ * sizeof(int32_t));
 
-	memset(hSof->buf.input, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
-	memset(hSof->buf.output, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
-	memset(hSof->buf.voltage, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
-	memset(hSof->buf.current, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
-	
-	memset(hSof->buf.ff.buf, 0, DSM_FF_BUF_DB_SZ * sizeof(int32_t));
-	memset(hSof->buf.ff_out.buf, 0, DSM_FF_BUF_DB_SZ * sizeof(int32_t));
-	memset(hSof->buf.fb.buf, 0, DSM_FB_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.input, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
+	memset(hsof_dsm->buf.output, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
+	memset(hsof_dsm->buf.voltage, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
+	memset(hsof_dsm->buf.current, 0, DSM_FF_BUF_SZ * sizeof(int16_t));
 
-	hSof->seq_ff = 0;
-	hSof->seq_fb = 0;
-	hSof->seq_sof_in= 0;
+	memset(hsof_dsm->buf.ff.buf, 0, DSM_FF_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.ff_out.buf, 0, DSM_FF_BUF_DB_SZ * sizeof(int32_t));
+	memset(hsof_dsm->buf.fb.buf, 0, DSM_FB_BUF_DB_SZ * sizeof(int32_t));
 
-	hSof->buf.ff.avail = DSM_FF_BUF_SZ;
-	hSof->buf.ff_out.avail = 0;
-	hSof->buf.fb.avail = 0;
+	hsof_dsm->seq_ff = 0;
+	hsof_dsm->seq_fb = 0;
+	hsof_dsm->seq_sof_in = 0;
+
+	hsof_dsm->buf.ff.avail = DSM_FF_BUF_SZ;
+	hsof_dsm->buf.ff_out.avail = 0;
+	hsof_dsm->buf.fb.avail = 0;
 
 	return 0;
 }
 
-int sof_dsm_inf_create(struct sof_dsm_struct_t *hSof, struct comp_dev *dev)
+int sof_dsm_inf_create(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev)
 {
-	return sof_dsm_create(hSof, dev);
+	return sof_dsm_create(hsof_dsm, dev);
 }
 static int sof_dsm_inf_get_buffer(int32_t *buf, uint32_t frames,
 	struct audio_stream *stream, int num_channel)
@@ -165,17 +164,17 @@ static int sof_dsm_inf_put_buffer(int32_t *buf, uint32_t frames,
 int sof_dsm_inf_ff_copy(struct comp_dev *dev, uint32_t frames,
 			     struct comp_buffer *source,
 			     struct comp_buffer *sink, int8_t *chan_map,
-			     struct sof_dsm_struct_t *hSof)
+			     struct sof_dsm_struct_t *hsof_dsm)
 {
 	int ret;
 
-	if (!hSof->dsm_init)
+	if (!hsof_dsm->dsm_init)
 		return -EINVAL;
 
-	hSof->seq_sof_in++;
+	hsof_dsm->seq_sof_in++;
 
 	if(frames == 0) {
-		comp_info(dev, "[DSM] FF frame size zero warning.");
+		comp_dbg(dev, "[DSM] FF frame size zero warning.");
 		return 0;
 	}
 
@@ -184,32 +183,32 @@ int sof_dsm_inf_ff_copy(struct comp_dev *dev, uint32_t frames,
 		return -EINVAL;
 	}
 
-	ret = sof_dsm_inf_get_buffer(hSof->buf.sof_a_frame_in,
-		frames, &(source->stream), 2);
+	ret = sof_dsm_inf_get_buffer(hsof_dsm->buf.sof_a_frame_in,
+				     frames, &source->stream, 2);
 	if (ret != 0)
 		goto err;
 
 	switch (source->stream.frame_fmt) {
 	case SOF_IPC_FRAME_S16_LE:
-		sof_dsm_ff_process(hSof, dev,
-			hSof->buf.sof_a_frame_in,
-			hSof->buf.sof_a_frame_out,
-			frames * 2, sizeof(int16_t));
+		sof_dsm_ff_process(hsof_dsm, dev,
+				   hsof_dsm->buf.sof_a_frame_in,
+				   hsof_dsm->buf.sof_a_frame_out,
+				   frames * 2, sizeof(int16_t));
 		break;
 	case SOF_IPC_FRAME_S24_4LE:
 	case SOF_IPC_FRAME_S32_LE:
-		sof_dsm_ff_process(hSof, dev,
-			hSof->buf.sof_a_frame_in,
-			hSof->buf.sof_a_frame_out,
-			frames * 2, sizeof(int32_t));
+		sof_dsm_ff_process(hsof_dsm, dev,
+				   hsof_dsm->buf.sof_a_frame_in,
+				   hsof_dsm->buf.sof_a_frame_out,
+				   frames * 2, sizeof(int32_t));
 		break;
 	default:
 		ret = -EINVAL;
 		goto err;
 	}
 
-	ret = sof_dsm_inf_put_buffer(hSof->buf.sof_a_frame_out,
-		frames, &sink->stream, 2, 4, 0x3, dev);
+	ret = sof_dsm_inf_put_buffer(hsof_dsm->buf.sof_a_frame_out,
+				     frames, &sink->stream, 2, 4, 0x3, dev);
 	if (ret != 0)
 		goto err;
 
@@ -221,15 +220,15 @@ err:
 int sof_dsm_inf_fb_copy(struct comp_dev *dev, uint32_t frames,
 			     struct comp_buffer *source,
 			     struct comp_buffer *sink, int8_t *chan_map,
-			     struct sof_dsm_struct_t *hSof)
+			     struct sof_dsm_struct_t *hsof_dsm)
 {
 	int ret;
 
-	if (!hSof->dsm_init)
+	if (!hsof_dsm->dsm_init)
 		return -EINVAL;
 
 	if(frames == 0) {
-		comp_info(dev, "[DSM] FB frame size zero warning.");
+		comp_dbg(dev, "[DSM] FB frame size zero warning.");
 		return 0;
 	}
 
@@ -238,20 +237,20 @@ int sof_dsm_inf_fb_copy(struct comp_dev *dev, uint32_t frames,
 		return -EINVAL;
 	}
 
-	ret = sof_dsm_inf_get_buffer(hSof->buf.sof_a_frame_iv,
-		frames, &(source->stream), 4);
+	ret = sof_dsm_inf_get_buffer(hsof_dsm->buf.sof_a_frame_iv,
+				     frames, &source->stream, 4);
 	if (ret != 0)
 		goto err;
 
 	switch (source->stream.frame_fmt) {
 	case SOF_IPC_FRAME_S16_LE:
-		sof_dsm_fb_process(hSof, dev, hSof->buf.sof_a_frame_iv,
-			frames << 2, sizeof(int16_t));
+		sof_dsm_fb_process(hsof_dsm, dev, hsof_dsm->buf.sof_a_frame_iv,
+				   frames << 2, sizeof(int16_t));
 		break;
 	case SOF_IPC_FRAME_S24_4LE:
 	case SOF_IPC_FRAME_S32_LE:
-		sof_dsm_fb_process(hSof, dev, hSof->buf.sof_a_frame_iv,
-			frames << 2, sizeof(int32_t));
+		sof_dsm_fb_process(hsof_dsm, dev, hsof_dsm->buf.sof_a_frame_iv,
+				   frames << 2, sizeof(int32_t));
 		break;
 	default:
 		ret = -EINVAL;

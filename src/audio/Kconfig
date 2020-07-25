@@ -14,12 +14,6 @@ config COMP_VOLUME
 	help
 	  Select for Volume component
 
-config MAXIM_DSM
-	bool "Maxim DSM component"
-	default y
-	help
-	  Enable Maxim Dynamic Speaker Management
-
 config COMP_SRC
 	bool "SRC component"
 	default y
@@ -134,6 +128,18 @@ config COMP_TEST_SMART_AMP
 	default y
 	help
 	  Select for test smart amplifier component
+
+config MAXIM_DSM
+	depends on CAVS && !CAVS_VERSION_1_5
+	bool "Maxim DSM component"
+	default y
+	help
+	  Select for Maxim DSM(Dynamic Speaker Management) component.
+	  This component protect the speaker from overheating and
+	  excursion violation. This consists of two parts which are
+	  feedforward processing block running on playback thread and
+	  feedback processing block running on capture thread with
+	  amp current and voltage feedback.
 
 config COMP_TEST_KEYPHRASE
 	bool "KEYPHRASE_TEST component"

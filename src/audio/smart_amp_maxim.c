@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
-// Copyright(c) 2020 Intel Corporation. All rights reserved.
+// Copyright(c) 2020 Maxim Integrated All rights reserved.
 //
-// Author: Bartosz Kokoszko <bartoszx.kokoszko@linux.intel.com>
+// Author: Ryan Lee <ryans.lee@maximintegrated.com>
 
-#include <sof/audio/smart_amp_test.h>
+#include <sof/audio/smart_amp_maxim.h>
 #include <sof/trace/trace.h>
 #include <sof/drivers/ipc.h>
 #include <sof/ut.h>
+#include <sof/audio/sof_dsm.h>
 
 static const struct comp_driver comp_smart_amp;
 
@@ -21,16 +22,204 @@ DECLARE_TR_CTX(smart_amp_comp_tr, SOF_UUID(smart_amp_comp_uuid),
 struct smart_amp_data {
 	struct sof_smart_amp_config config;
 	struct comp_model_data model;
-
 	struct comp_buffer *source_buf; /**< stream source buffer */
 	struct comp_buffer *feedback_buf; /**< feedback source buffer */
 	struct comp_buffer *sink_buf; /**< sink buffer */
-
 	smart_amp_proc process;
-
 	uint32_t in_channels;
 	uint32_t out_channels;
+
+	struct sof_dsm_struct_t *sof_dsm_handle;
 };
+
+static inline void *smart_amp_malloc(int size)
+{
+	void *ret = rballoc(0, SOF_MEM_CAPS_RAM, size);
+
+	if (!ret) {
+		rfree(ret);
+		return NULL;
+	}
+	memset(ret, 0, size);
+	return ret;
+}
+
+static inline int smart_amp_alloc_memory(struct smart_amp_data *sad, struct comp_dev *dev)
+{
+	struct sof_dsm_struct_t *hsof_dsm;
+	int mem_sz[3];
+	int size;
+
+	if (sad->sof_dsm_handle)
+		return 0;
+
+	/* sof dsm handle */
+	mem_sz[0] = sizeof(struct sof_dsm_struct_t);
+	sad->sof_dsm_handle = smart_amp_malloc(mem_sz[0]);
+	if (!sad->sof_dsm_handle)
+		goto err;
+
+	hsof_dsm = sad->sof_dsm_handle;
+
+	/* dsm handle */
+	mem_sz[1] = sof_dsm_get_memory_size(hsof_dsm, dev);
+	hsof_dsm->dsmhandle = smart_amp_malloc(mem_sz[1]);
+	if (!hsof_dsm->dsmhandle)
+		goto err;
+
+	/* buffer : sof -> sof dsm ff */
+	size = SOF_FF_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.sof_a_frame_in = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.sof_a_frame_in)
+		goto err;
+	mem_sz[2] = size;
+
+	/* buffer : sof <- sof dsm ff */
+	size = SOF_FF_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.sof_a_frame_out = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.sof_a_frame_out)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof -> sof dsm fb */
+	size = SOF_FB_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.sof_a_frame_iv = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.sof_a_frame_iv)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm ff stage */
+	size = DSM_FF_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.stage = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.stage)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm fb stage */
+	size = DSM_FB_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.stage_fb = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.stage_fb)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm -> dsm ff in */
+	size = DSM_FF_BUF_SZ * sizeof(int16_t);
+	hsof_dsm->buf.input = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.input)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm <- dsm ff out */
+	size = DSM_FF_BUF_SZ * sizeof(int16_t);
+	hsof_dsm->buf.output = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.output)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm -> dsm fb voltage */
+	size = DSM_FF_BUF_SZ * sizeof(int16_t);
+	hsof_dsm->buf.voltage = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.voltage)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm -> dsm fb current */
+	size = DSM_FF_BUF_SZ * sizeof(int16_t);
+	hsof_dsm->buf.current = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.current)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm ff in : variable length -> fixed length */
+	size = DSM_FF_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.ff.buf = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.ff.buf)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm ff out : variable length <- fixed length */
+	size = DSM_FF_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.ff_out.buf = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.ff_out.buf)
+		goto err;
+	mem_sz[2] += size;
+
+	/* buffer : sof dsm fb : variable length -> fixed length */
+	size = DSM_FB_BUF_DB_SZ * sizeof(int32_t);
+	hsof_dsm->buf.fb.buf = smart_amp_malloc(size);
+	if (!hsof_dsm->buf.fb.buf)
+		goto err;
+	mem_sz[2] += size;
+
+	comp_dbg(dev, "[DSM] sof:%p (%d bytes), dsm:%p (%d bytes)",
+		 (uintptr_t)hsof_dsm, mem_sz[0] + mem_sz[2],
+		 (uintptr_t)hsof_dsm->dsmhandle, mem_sz[1]);
+
+	return 0;
+err:
+	return -1;
+}
+
+static inline void smart_amp_free_memory(struct smart_amp_data *sad, struct comp_dev *dev)
+{
+	struct sof_dsm_struct_t *hsof_dsm = sad->sof_dsm_handle;
+
+	/* buffer : sof -> sof dsm ff */
+	if (hsof_dsm->buf.sof_a_frame_in)
+		rfree(hsof_dsm->buf.sof_a_frame_in);
+
+	/* buffer : sof <- sof dsm ff */
+	if (hsof_dsm->buf.sof_a_frame_out)
+		rfree(hsof_dsm->buf.sof_a_frame_out);
+
+	/* buffer : sof -> sof dsm fb */
+	if (hsof_dsm->buf.sof_a_frame_iv)
+		rfree(hsof_dsm->buf.sof_a_frame_iv);
+
+	/* buffer : sof dsm ff stage */
+	if (hsof_dsm->buf.stage)
+		rfree(hsof_dsm->buf.stage);
+
+	/* buffer : sof dsm fb stage */
+	if (hsof_dsm->buf.stage_fb)
+		rfree(hsof_dsm->buf.stage_fb);
+
+	/* buffer : sof dsm -> dsm ff in */
+	if (hsof_dsm->buf.input)
+		rfree(hsof_dsm->buf.input);
+
+	/* buffer : sof dsm <- dsm ff out */
+	if (hsof_dsm->buf.output)
+		rfree(hsof_dsm->buf.output);
+
+	/* buffer : sof dsm -> dsm fb voltage */
+	if (hsof_dsm->buf.voltage)
+		rfree(hsof_dsm->buf.voltage);
+
+	/* buffer : sof dsm -> dsm fb current */
+	if (hsof_dsm->buf.current)
+		rfree(hsof_dsm->buf.current);
+
+	/* buffer : sof dsm ff in : variable length -> fixed length */
+	if (hsof_dsm->buf.ff.buf)
+		rfree(hsof_dsm->buf.ff.buf);
+
+	/* buffer : sof dsm ff out : variable length <- fixed length */
+	if (hsof_dsm->buf.ff_out.buf)
+		rfree(hsof_dsm->buf.ff_out.buf);
+
+	/* buffer : sof dsm fb : variable length -> fixed length */
+	if (hsof_dsm->buf.fb.buf)
+		rfree(hsof_dsm->buf.fb.buf);
+
+	/* dsm handle */
+	if (hsof_dsm->dsmhandle)
+		rfree(hsof_dsm->dsmhandle);
+
+	/* sof dsm handle */
+	if (hsof_dsm)
+		rfree(hsof_dsm);
+}
 
 static struct comp_dev *smart_amp_new(const struct comp_driver *drv,
 				      struct sof_ipc_comp *comp)
@@ -66,7 +255,7 @@ static struct comp_dev *smart_amp_new(const struct comp_driver *drv,
 	cfg = (struct sof_smart_amp_config *)ipc_sa->data;
 	bs = ipc_sa->size;
 
-	if ((bs > 0) && (bs < sizeof(struct sof_smart_amp_config))) {
+	if (bs > 0 && bs < sizeof(struct sof_smart_amp_config)) {
 		comp_err(dev, "smart_amp_new(): failed to apply config");
 
 		if (sad)
@@ -76,6 +265,10 @@ static struct comp_dev *smart_amp_new(const struct comp_driver *drv,
 	}
 
 	memcpy_s(&sad->config, sizeof(struct sof_smart_amp_config), cfg, bs);
+
+	if (smart_amp_alloc_memory(sad, dev) != 0)
+		return NULL;
+	sof_dsm_inf_create(sad->sof_dsm_handle, dev);
 
 	dev->state = COMP_STATE_READY;
 
@@ -162,7 +355,7 @@ static int smart_amp_ctrl_get_data(struct comp_dev *dev,
 {
 	int ret = 0;
 
-	comp_info(dev, "smart_amp_ctrl_get_data() size: %d", size);
+	comp_dbg(dev, "smart_amp_ctrl_get_data() size: %d", size);
 
 	switch (cdata->cmd) {
 	case SOF_CTRL_CMD_BINARY:
@@ -223,10 +416,10 @@ static int smart_amp_ctrl_set_data(struct comp_dev *dev,
 
 	switch (cdata->cmd) {
 	case SOF_CTRL_CMD_ENUM:
-		comp_info(dev, "smart_amp_ctrl_set_data(), SOF_CTRL_CMD_ENUM");
+		comp_dbg(dev, "smart_amp_ctrl_set_data(), SOF_CTRL_CMD_ENUM");
 		break;
 	case SOF_CTRL_CMD_BINARY:
-		comp_info(dev, "smart_amp_ctrl_set_data(), SOF_CTRL_CMD_BINARY");
+		comp_dbg(dev, "smart_amp_ctrl_set_data(), SOF_CTRL_CMD_BINARY");
 		ret = smart_amp_ctrl_set_bin_data(dev, cdata);
 		break;
 	default:
@@ -244,7 +437,7 @@ static int smart_amp_cmd(struct comp_dev *dev, int cmd, void *data,
 {
 	struct sof_ipc_ctrl_data *cdata = data;
 
-	comp_info(dev, "smart_amp_cmd(): cmd: %d", cmd);
+	comp_dbg(dev, "smart_amp_cmd(): cmd: %d", cmd);
 
 	switch (cmd) {
 	case COMP_CMD_SET_DATA:
@@ -260,7 +453,9 @@ static void smart_amp_free(struct comp_dev *dev)
 {
 	struct smart_amp_data *sad = comp_get_drvdata(dev);
 
-	comp_info(dev, "smart_amp_free()");
+	comp_dbg(dev, "smart_amp_free()");
+
+	smart_amp_free_memory(sad, dev);
 
 	comp_free_model_data(dev, &sad->model);
 	rfree(sad);
@@ -272,7 +467,7 @@ static int smart_amp_verify_params(struct comp_dev *dev,
 {
 	int ret;
 
-	comp_info(dev, "smart_amp_verify_params()");
+	comp_dbg(dev, "smart_amp_verify_params()");
 
 	ret = comp_verify_params(dev, BUFF_PARAMS_CHANNELS, params);
 	if (ret < 0) {
@@ -288,7 +483,7 @@ static int smart_amp_params(struct comp_dev *dev,
 {
 	int err;
 
-	comp_info(dev, "smart_amp_params()");
+	comp_dbg(dev, "smart_amp_params()");
 
 	err = smart_amp_verify_params(dev, params);
 	if (err < 0) {
@@ -304,7 +499,7 @@ static int smart_amp_trigger(struct comp_dev *dev, int cmd)
 	struct smart_amp_data *sad = comp_get_drvdata(dev);
 	int ret = 0;
 
-	comp_info(dev, "smart_amp_trigger(), command = %u", cmd);
+	comp_dbg(dev, "smart_amp_trigger(), command = %u", cmd);
 
 	ret = comp_set_state(dev, cmd);
 
@@ -326,69 +521,26 @@ static int smart_amp_trigger(struct comp_dev *dev, int cmd)
 	return ret;
 }
 
-static int smart_amp_process_s16(struct comp_dev *dev,
-				 const struct audio_stream *source,
-				 const struct audio_stream *sink,
-				 uint32_t frames, int8_t *chan_map)
+static int smart_amp_process(struct comp_dev *dev,
+			     const struct audio_stream *source,
+			     const struct audio_stream *sink,
+			     uint32_t frames, int8_t *chan_map,
+			     bool is_feedback)
 {
 	struct smart_amp_data *sad = comp_get_drvdata(dev);
-	int16_t *src;
-	int16_t *dest;
-	uint32_t in_frag = 0;
-	uint32_t out_frag = 0;
-	int i;
-	int j;
+	int ret;
 
-	comp_dbg(dev, "smart_amp_process_s16()");
-
-	for (i = 0; i < frames; i++) {
-		for (j = 0 ; j < sad->out_channels; j++) {
-			if (chan_map[j] != -1) {
-				src = audio_stream_read_frag_s16(source,
-								 in_frag +
-								 chan_map[j]);
-				dest = audio_stream_write_frag_s16(sink,
-								   out_frag);
-				*dest = *src;
-			}
-			out_frag++;
-		}
-		in_frag += source->channels;
-	}
-	return 0;
-}
-
-static int smart_amp_process_s32(struct comp_dev *dev,
-				 const struct audio_stream *source,
-				 const struct audio_stream *sink,
-				 uint32_t frames, int8_t *chan_map)
-{
-	struct smart_amp_data *sad = comp_get_drvdata(dev);
-	int32_t *src;
-	int32_t *dest;
-	uint32_t in_frag = 0;
-	uint32_t out_frag = 0;
-	int i;
-	int j;
-
-	comp_dbg(dev, "smart_amp_process_s32()");
-
-	for (i = 0; i < frames; i++) {
-		for (j = 0 ; j < sad->out_channels; j++) {
-			if (chan_map[j] != -1) {
-				src = audio_stream_read_frag_s32(source,
-								 in_frag +
-								 chan_map[j]);
-				dest = audio_stream_write_frag_s32(sink,
-								   out_frag);
-				*dest = *src;
-			}
-			out_frag++;
-		}
-		in_frag += source->channels;
-	}
-
-	return 0;
+	if (!is_feedback)
+		ret = sof_dsm_inf_ff_copy(dev, frames,
+					  sad->source_buf, sad->sink_buf,
+					  sad->config.source_ch_map,
+					  sad->sof_dsm_handle);
+	else
+		ret = sof_dsm_inf_fb_copy(dev, frames,
+					  sad->feedback_buf, sad->sink_buf,
+					  sad->config.feedback_ch_map,
+					  sad->sof_dsm_handle);
+	return ret;
 }
 
 static smart_amp_proc get_smart_amp_process(struct comp_dev *dev)
@@ -397,10 +549,9 @@ static smart_amp_proc get_smart_amp_process(struct comp_dev *dev)
 
 	switch (sad->source_buf->stream.frame_fmt) {
 	case SOF_IPC_FRAME_S16_LE:
-		return smart_amp_process_s16;
 	case SOF_IPC_FRAME_S24_4LE:
 	case SOF_IPC_FRAME_S32_LE:
-		return smart_amp_process_s32;
+		return smart_amp_process;
 	default:
 		comp_err(dev, "smart_amp_process() error: not supported frame format");
 		return NULL;
@@ -455,7 +606,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 
 		sad->process(dev, &sad->feedback_buf->stream,
 			     &sad->sink_buf->stream, avail_frames,
-			     sad->config.feedback_ch_map);
+			     sad->config.feedback_ch_map, true);
 
 		comp_update_buffer_consume(sad->feedback_buf, feedback_bytes);
 	}
@@ -473,7 +624,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 
 	/* process data */
 	sad->process(dev, &sad->source_buf->stream, &sad->sink_buf->stream,
-		     avail_frames, sad->config.source_ch_map);
+		     avail_frames, sad->config.source_ch_map, false);
 
 	/* source/sink buffer pointers update */
 	comp_update_buffer_consume(sad->source_buf, source_bytes);
@@ -484,7 +635,7 @@ static int smart_amp_copy(struct comp_dev *dev)
 
 static int smart_amp_reset(struct comp_dev *dev)
 {
-	comp_info(dev, "smart_amp_reset()");
+	comp_dbg(dev, "smart_amp_reset()");
 
 	comp_set_state(dev, COMP_TRIGGER_RESET);
 
@@ -498,7 +649,7 @@ static int smart_amp_prepare(struct comp_dev *dev)
 	struct list_item *blist;
 	int ret;
 
-	comp_info(dev, "smart_amp_prepare()");
+	comp_dbg(dev, "smart_amp_prepare()");
 
 	ret = comp_set_state(dev, COMP_TRIGGER_PREPARE);
 	if (ret < 0)
@@ -537,6 +688,8 @@ static int smart_amp_prepare(struct comp_dev *dev)
 		comp_err(dev, "smart_amp_prepare(): get_smart_amp_process failed");
 		return -EINVAL;
 	}
+
+	sof_dsm_inf_reset(sad->sof_dsm_handle, dev);
 
 	return 0;
 }

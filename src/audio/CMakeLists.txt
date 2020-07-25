@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 if(NOT CONFIG_LIBRARY)
-	if(CONFIG_MAXIM_DSM)
-		add_subdirectory(dsm)
-	endif()
 	add_local_sources(sof
 		host.c
 		pipeline.c
@@ -64,10 +61,16 @@ if(NOT CONFIG_LIBRARY)
 		)
 	endif()
 	if(CONFIG_COMP_TEST_SMART_AMP)
-		sof_add_static_library(dsm ./dsm/libdsm.a)
 		add_local_sources(sof
 			smart_amp_test.c
 		)
+	endif()
+	if(CONFIG_MAXIM_DSM)
+		sof_add_static_library(dsm ./dsm/libdsm.a)
+		add_local_sources(sof
+			smart_amp_maxim.c
+		)
+		add_subdirectory(dsm)
 	endif()
 	add_subdirectory(pcm_converter)
 	if(CONFIG_COMP_ASRC)

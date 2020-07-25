@@ -46,40 +46,42 @@ struct sof_dsm_prep_fb_buf_struct_t {
 	int rdy;
 };
 struct sof_dsm_buf_struct_t {
-	/* sof -> dsm FF */
+	/* buffer : sof -> sof dsm ff */
 	int32_t *sof_a_frame_in;
-	/* sof <- dsm FF */
+	/* buffer : sof <- sof dsm ff */
 	int32_t *sof_a_frame_out;
-	/* sof -> dsm FB */
+	/* buffer : sof -> sof dsm fb */
 	int32_t *sof_a_frame_iv;
-	/* stage buffer */
+	/* buffer : sof dsm ff stage */
 	int32_t *stage;
-	/* stage_fb buffer */
+	/* buffer : sof dsm fb stage */
 	int32_t *stage_fb;
-	/* dsm FF in */
+	/* buffer : sof dsm -> dsm ff in */
 	int16_t *input;
-	/* dsm FF out */
+	/* buffer : sof dsm <- dsm ff out */
 	int16_t *output;
-	/* dsm FB out : voltage */
+	/* buffer : sof dsm -> dsm fb voltage */
 	int16_t *voltage;
-	/* dsm FB in : current */
+	/* buffer : sof dsm -> dsm fb current */
 	int16_t *current;
+	/* buffer : sof dsm ff in : variable length -> fixed length */
 	struct sof_dsm_prep_ff_buf_struct_t ff;
+	/* buffer : sof dsm ff out : variable length <- fixed length */
 	struct sof_dsm_prep_ff_buf_struct_t ff_out;
+	/* buffer : sof dsm fb : variable length -> fixed length */
 	struct sof_dsm_prep_fb_buf_struct_t fb;
-
 };
 struct sof_dsm_struct_t {
-	void *dsmHandle;
-	int delayedSamples[MAX_CHANNELS*4];
-	int circularBufferSize[MAX_CHANNELS*4];
-	int ffFrameSizeSamples;
-	int fbFrameSizeSamples;
-	int channelMask;
-	int nChannels;
-	int iFSamples;
-	int iBSamples;
-	int oFSamples;
+	void *dsmhandle;
+	int delayedsamples[MAX_CHANNELS << 2];
+	int circularbuffersize[MAX_CHANNELS << 2];
+	int ff_fr_sz_samples;
+	int fb_fr_sz_samples;
+	int channelmask;
+	int nchannels;
+	int ifsamples;
+	int ibsamples;
+	int ofsamples;
 	bool dsm_init;
 	struct sof_dsm_buf_struct_t buf;
 	int seq_sof_in;
@@ -88,23 +90,21 @@ struct sof_dsm_struct_t {
 };
 
 /* Interface functions */
-int sof_dsm_inf_reset(struct sof_dsm_struct_t *hSof, struct comp_dev *dev);
-int sof_dsm_inf_create(struct sof_dsm_struct_t *hSof, struct comp_dev *dev);
+int sof_dsm_inf_reset(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev);
+int sof_dsm_inf_create(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev);
 int sof_dsm_inf_ff_copy(struct comp_dev *dev, uint32_t frames,
-			     struct comp_buffer *source,
-			     struct comp_buffer *sink, int8_t *chan_map,
-			     struct sof_dsm_struct_t *hSof);
+			struct comp_buffer *source,
+			struct comp_buffer *sink, int8_t *chan_map,
+			struct sof_dsm_struct_t *hsof_dsm);
 int sof_dsm_inf_fb_copy(struct comp_dev *dev, uint32_t frames,
-			     struct comp_buffer *source,
-			     struct comp_buffer *sink, int8_t *chan_map,
-			     struct sof_dsm_struct_t *hSof);
+			struct comp_buffer *source,
+			struct comp_buffer *sink, int8_t *chan_map,
+			struct sof_dsm_struct_t *hsof_dsm);
 /* DSM Integration functions */
-int sof_dsm_get_memory_size(struct sof_dsm_struct_t *hSof,
-	struct comp_dev *dev);
-int sof_dsm_create(struct sof_dsm_struct_t *hSof, struct comp_dev *dev);
-void sof_dsm_ff_process(struct sof_dsm_struct_t *hSof, struct comp_dev *dev,
-	void *in, void *out, int nSamples, int szSample);
-void sof_dsm_fb_process(struct sof_dsm_struct_t *hSof, struct comp_dev *dev,
-	void *in, int nSamples, int szSample);
+int sof_dsm_get_memory_size(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev);
+int sof_dsm_create(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev);
+void sof_dsm_ff_process(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev,
+			void *in, void *out, int nsamples, int szsample);
+void sof_dsm_fb_process(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev,
+			void *in, int nsamples, int szsample);
 #endif
-

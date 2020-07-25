@@ -17,59 +17,53 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "dsm_api.h"
-#include "dsm_api_types.h"
+#include "dsm_api_public.h"
 
 #ifdef PRINT_ADAPTIVE_LOG
-static int sof_dsm_get_adaptive_apram(struct sof_dsm_struct_t *hSof,
-	struct comp_dev *dev)
+static int sof_dsm_get_adaptive_apram(struct sof_dsm_struct_t *hsof_dsm,
+				      struct comp_dev *dev)
 {
-	DSM_API_MESSAGE retCode;
-	int cmdBlock[1+MAX_CHANNELS];
+	enum DSM_API_MESSAGE retcode;
+	int cmdblock[1 + MAX_CHANNELS];
 	int excur[2], temp[2], dc_res[2], fc[2], q[2];
 
-	if (hSof->seq_fb % 200 != 0)
+	if (hsof_dsm->seq_fb % 200 != 0)
 		return 0;
 
-	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_EXCURSION);
-	retCode = DSM_API_Get_Params(hSof->dsmHandle,
-		1, (void *)cmdBlock);
-	if (retCode != DSM_API_OK)
+	cmdblock[0] = DSM_SET_CMD_ID(20);
+	retcode = dsm_api_get_params(hsof_dsm->dsmhandle, 1, (void *)cmdblock);
+	if (retcode != DSM_API_OK)
 		goto err;
-	excur[0] = cmdBlock[1];
-	excur[1] = cmdBlock[2];
+	excur[0] = cmdblock[1];
+	excur[1] = cmdblock[2];
 
-	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_COILTEMP);
-	retCode = DSM_API_Get_Params(hSof->dsmHandle,
-		1, (void *)cmdBlock);
-	if (retCode != DSM_API_OK)
+	cmdblock[0] = DSM_SET_CMD_ID(19);
+	retcode = dsm_api_get_params(hsof_dsm->dsmhandle, 1, (void *)cmdblock);
+	if (retcode != DSM_API_OK)
 		goto err;
-	temp[0] = cmdBlock[1];
-	temp[1] = cmdBlock[2];
+	temp[0] = cmdblock[1];
+	temp[1] = cmdblock[2];
 
-	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_DC_RES);
-	retCode = DSM_API_Get_Params(hSof->dsmHandle,
-		1, (void *)cmdBlock);
-	if (retCode != DSM_API_OK)
+	cmdblock[0] = DSM_SET_CMD_ID(18);
+	retcode = dsm_api_get_params(hsof_dsm->dsmhandle, 1, (void *)cmdblock);
+	if (retcode != DSM_API_OK)
 		goto err;
-	dc_res[0] = cmdBlock[1];
-	dc_res[1] = cmdBlock[2];
+	dc_res[0] = cmdblock[1];
+	dc_res[1] = cmdblock[2];
 
-	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_FC);
-	retCode = DSM_API_Get_Params(hSof->dsmHandle,
-		1, (void *)cmdBlock);
-	if (retCode != DSM_API_OK)
+	cmdblock[0] = DSM_SET_CMD_ID(16);
+	retcode = dsm_api_get_params(hsof_dsm->dsmhandle, 1, (void *)cmdblock);
+	if (retcode != DSM_API_OK)
 		goto err;
-	fc[0] = cmdBlock[1];
-	fc[1] = cmdBlock[2];
+	fc[0] = cmdblock[1];
+	fc[1] = cmdblock[2];
 
-	cmdBlock[0] = DSM_SET_CMD_ID(DSM_API_GET_ADAPTIVE_Q);
-	retCode = DSM_API_Get_Params(hSof->dsmHandle,
-		1, (void *)cmdBlock);
-	if (retCode != DSM_API_OK)
+	cmdblock[0] = DSM_SET_CMD_ID(17);
+	retcode = dsm_api_get_params(hsof_dsm->dsmhandle, 1, (void *)cmdblock);
+	if (retcode != DSM_API_OK)
 		goto err;
-	q[0] = cmdBlock[1];
-	q[1] = cmdBlock[2];
+	q[0] = cmdblock[1];
+	q[1] = cmdblock[2];
 
 	comp_info(dev, "[DSM] excursion(Q27) :%08x, %08x",
 		excur[0], excur[1]);
@@ -82,181 +76,176 @@ static int sof_dsm_get_adaptive_apram(struct sof_dsm_struct_t *hSof,
 
 	return 0;
 err:
-	comp_err(dev, "[DSM] Get adaptive parameters. error:%d", retCode);
-	return retCode;
+	comp_err(dev, "[DSM] Get adaptive parameters. error:%d", retcode);
+	return retcode;
 }
 #endif
-static int sof_dsm_set_default_param(struct sof_dsm_struct_t *hSof,
-	struct comp_dev *dev)
+static int sof_dsm_set_default_param(struct sof_dsm_struct_t *hsof_dsm,
+				     struct comp_dev *dev)
 {
-	DSM_API_MESSAGE retCode;
+	enum DSM_API_MESSAGE retcode;
 	int value[MAX_CHANNELS*2+1];
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_ENABLE_LINKWITZ_EQ);
+	value[0] = DSM_SET_CMD_ID(111);
 	value[1] = 0;
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_ENABLE_SMART_PT);
+	value[0] = DSM_SET_CMD_ID(104);
 	value[1] = 0;
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_ENABLE_LOGGING);
+	value[0] = DSM_SET_CMD_ID(70);
 	value[1] = 0;	/* Smart pilot tone off */
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_DEBUZZER_ENABLE);
+	value[0] = DSM_SET_CMD_ID(198);
 	value[1] = 0;	/* Debuzzer off */
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_EQ_BAND_ENABLE);
+	value[0] = DSM_SET_CMD_ID(36);
 	value[1] = 0;	/* EQ off */
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_IV_FORMAT);
+	value[0] = DSM_SET_CMD_ID(146);
 	value[1] = 0;
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_THERMAL_ENABLE);
+	value[0] = DSM_SET_CMD_ID(31);
 	value[1] = 1;
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
-	value[0] = DSM_SET_CMD_ID(DSM_API_SETGET_ENABLE);
+	value[0] = DSM_SET_CMD_ID(1);
 	value[1] = 1;
-	retCode = DSM_API_Set_Params(hSof->dsmHandle, 1, value);
-	if (retCode != DSM_API_OK)
+	retcode = dsm_api_set_params(hsof_dsm->dsmhandle, 1, value);
+	if (retcode != DSM_API_OK)
 		goto err;
 
 	return 0;
 err:
 	comp_err(dev, "[DSM] Set default parameters ID:%x value:%x, error:%d",
-		value[0], value[1], retCode);
-	return retCode;
+		value[0], value[1], retcode);
+	return retcode;
 }
 
-int sof_dsm_get_memory_size(struct sof_dsm_struct_t *hSof, struct comp_dev *dev)
+int sof_dsm_get_memory_size(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev)
 {
-	DSM_API_MESSAGE retCode;
-	int *circularBufferSize = hSof->circularBufferSize;
-	dsm_api_memory_size_ext_t sMemSize;
+	enum DSM_API_MESSAGE retcode;
+	struct dsm_api_memory_size_ext_t memsize;
+	int *circularbuffersize = hsof_dsm->circularbuffersize;
 
-	sMemSize.iChannels = 2;
-	sMemSize.ipCircBufferSizeBytes = circularBufferSize;
-	sMemSize.iSamplingRate = 48000;
-	sMemSize.oMemSizeRequestedBytes = 0;
-	sMemSize.numEQFilters = 8;
-	retCode = DSM_API_get_memory_size_ext(&sMemSize,
-		sizeof(dsm_api_memory_size_ext_t));
-	if (retCode != DSM_API_OK)
+	memsize.ichannels = 2;
+	memsize.ipcircbuffersizebytes = circularbuffersize;
+	memsize.isamplingrate = 48000;
+	memsize.omemsizerequestedbytes = 0;
+	memsize.numeqfilters = 8;
+	retcode = dsm_api_get_mem(&memsize, sizeof(struct dsm_api_memory_size_ext_t));
+	if (retcode != DSM_API_OK)
 		return 0;
 
-	comp_info(dev,
-		"[DSM] sof_dsm_get_memory_size = %d",
-		sMemSize.oMemSizeRequestedBytes);
-
-	return sMemSize.oMemSizeRequestedBytes;
+	return memsize.omemsizerequestedbytes;
 }
-int sof_dsm_create(struct sof_dsm_struct_t *hSof, struct comp_dev *dev)
+
+int sof_dsm_create(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev)
 {
-	int *circularBufferSize = hSof->circularBufferSize;
-	int *delayedSamples = hSof->delayedSamples;
-	dsm_api_init_ext_t sInitParam;
-	DSM_API_MESSAGE retCode;
+	int *circularbuffersize = hsof_dsm->circularbuffersize;
+	int *delayedsamples = hsof_dsm->delayedsamples;
+	struct dsm_api_init_ext_t initparam;
+	enum DSM_API_MESSAGE retcode;
 
 	comp_info(dev, BUILD_TIME);
 
-	if (!hSof->dsm_init)	{
-		sInitParam.iSampleBitWidth       = 16;
-		sInitParam.iChannels             = 2;
-		sInitParam.ipCircBufferSizeBytes = circularBufferSize;
-		sInitParam.ipDelayedSamples      = delayedSamples;
-		sInitParam.iSamplingRate         = 48000;
+	if (!hsof_dsm->dsm_init) {
+		initparam.isamplebitwidth       = 16;
+		initparam.ichannels             = 2;
+		initparam.ipcircbuffersizebytes = circularbuffersize;
+		initparam.ipdelayedsamples      = delayedsamples;
+		initparam.isamplingrate         = 48000;
 
-		retCode = DSM_API_Init_ext(
-			hSof->dsmHandle,
-			&sInitParam,
-			sizeof(dsm_api_init_ext_t));
-		if (retCode != DSM_API_OK)
+		retcode = dsm_api_init(hsof_dsm->dsmhandle, &initparam,
+				       sizeof(struct dsm_api_init_ext_t));
+		if (retcode != DSM_API_OK) {
 			goto exit;
-		else	{
-			hSof->ffFrameSizeSamples =
-				sInitParam.oFF_FrameSizeSamples;
-			hSof->fbFrameSizeSamples =
-				sInitParam.oFB_FrameSizeSamples;
-			hSof->channelMask = 0;
-			hSof->nChannels = sInitParam.iChannels;
-			hSof->iFSamples = hSof->ffFrameSizeSamples
-				* sInitParam.iChannels;
-			hSof->iBSamples = hSof->fbFrameSizeSamples
-				* sInitParam.iChannels;
+		} else	{
+			hsof_dsm->ff_fr_sz_samples =
+				initparam.off_framesizesamples;
+			hsof_dsm->fb_fr_sz_samples =
+				initparam.ofb_framesizesamples;
+			hsof_dsm->channelmask = 0;
+			hsof_dsm->nchannels = initparam.ichannels;
+			hsof_dsm->ifsamples = hsof_dsm->ff_fr_sz_samples
+				* initparam.ichannels;
+			hsof_dsm->ibsamples = hsof_dsm->fb_fr_sz_samples
+				* initparam.ichannels;
 
-			hSof->dsm_init = true;
+			hsof_dsm->dsm_init = true;
 		}
 
-		sof_dsm_set_default_param(hSof, dev);
+		sof_dsm_set_default_param(hsof_dsm, dev);
 
 		comp_info(dev, "[DSM] Initialization completed. (sof:%p, dsm:%p)",
-			(uintptr_t) hSof,
-			(uintptr_t) hSof->dsmHandle);
-	} else
-		comp_info(dev, "[DSM] Re-initialization.");
+			(uintptr_t)hsof_dsm,
+			(uintptr_t)hsof_dsm->dsmhandle);
+	} else {
+		comp_dbg(dev, "[DSM] Re-initialization.");
+	}
 	return 0;
 exit:
-	comp_err(dev, "[DSM] Initialization failed. ret:%d", retCode);
-	return (int) retCode;
+	comp_err(dev, "[DSM] Initialization failed. ret:%d", retcode);
+	return (int)retcode;
 }
 
-void sof_dsm_ff_process(struct sof_dsm_struct_t *hSof, struct comp_dev *dev,
-	void *in, void *out, int nSamples, int szSample)
+void sof_dsm_ff_process(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev,
+			void *in, void *out, int nsamples, int szsample)
 {
-	DSM_API_MESSAGE retCode;
+	enum DSM_API_MESSAGE retcode;
 	union sof_dsm_buf buf, buf_out;
-	int16_t *input = (int16_t *) hSof->buf.input;
-	int16_t *output = (int16_t *) hSof->buf.output;
-	int16_t *stage = (int16_t *) hSof->buf.stage;
-	int *wrPtr = &(hSof->buf.ff.avail);
-	int *rdPtr = &(hSof->buf.ff_out.avail);
-	bool is_16bit = szSample == 2 ? true : false;
+	int16_t *input = (int16_t *)hsof_dsm->buf.input;
+	int16_t *output = (int16_t *)hsof_dsm->buf.output;
+	int16_t *stage = (int16_t *)hsof_dsm->buf.stage;
+	int *w_ptr = &hsof_dsm->buf.ff.avail;
+	int *r_ptr = &hsof_dsm->buf.ff_out.avail;
+	bool is_16bit = szsample == 2 ? true : false;
 	int remain;
 	int x;
 
-	if (!hSof->dsm_init)
+	if (!hsof_dsm->dsm_init)
 		return;
 
-	buf.buf16 = (int16_t *) hSof->buf.ff.buf;
-	buf.buf32 = (int32_t *) hSof->buf.ff.buf;
-	buf_out.buf16 = (int16_t *) hSof->buf.ff_out.buf;
-	buf_out.buf32 = (int32_t *) hSof->buf.ff_out.buf;
+	buf.buf16 = (int16_t *)hsof_dsm->buf.ff.buf;
+	buf.buf32 = (int32_t *)hsof_dsm->buf.ff.buf;
+	buf_out.buf16 = (int16_t *)hsof_dsm->buf.ff_out.buf;
+	buf_out.buf32 = (int32_t *)hsof_dsm->buf.ff_out.buf;
 
-	if (*wrPtr + nSamples <= DSM_FF_BUF_DB_SZ) {
+	if (*w_ptr + nsamples <= DSM_FF_BUF_DB_SZ) {
 		if (is_16bit)
-			memcpy_s(&buf.buf16[*wrPtr], nSamples * szSample,
-				in, nSamples * szSample);
+			memcpy_s(&buf.buf16[*w_ptr], nsamples * szsample,
+				 in, nsamples * szsample);
 		else
-			memcpy_s(&buf.buf32[*wrPtr], nSamples * szSample,
-				in, nSamples * szSample);
-		*wrPtr += nSamples;
+			memcpy_s(&buf.buf32[*w_ptr], nsamples * szsample,
+				 in, nsamples * szsample);
+		*w_ptr += nsamples;
 	} else {
-		comp_info(dev,
-			"[DSM] FF process buffer overflow. (rdPtr : %d > %d)",
-			*wrPtr, DSM_FF_BUF_DB_SZ);
+		comp_err(dev,
+			 "[DSM] FF process buffer overflow. (r_ptr : %d > %d)",
+			 *w_ptr, DSM_FF_BUF_DB_SZ);
 		return;
 	}
 
-	if (*wrPtr >= DSM_FF_BUF_SZ) {
+	if (*w_ptr >= DSM_FF_BUF_SZ) {
 		/* Do FF processing */
 		for (x = 0; x < DSM_FRM_SZ; x++) {
 			/* Buffer ordering for DSM process LLL... / RRR... */
@@ -271,113 +260,112 @@ void sof_dsm_ff_process(struct sof_dsm_struct_t *hSof, struct comp_dev *dev,
 			}
 		}
 
-		remain = (*wrPtr - DSM_FF_BUF_SZ);
+		remain = (*w_ptr - DSM_FF_BUF_SZ);
 		if (remain)	{
 			/* memmove is not available. */
 			if (is_16bit) {
-				memcpy_s(stage, remain * szSample,
-					&buf.buf16[DSM_FF_BUF_SZ],
-					remain * szSample);
-				memcpy_s(buf.buf16, remain * szSample,
-					stage, remain * szSample);
+				memcpy_s(stage, remain * szsample,
+					 &buf.buf16[DSM_FF_BUF_SZ],
+					 remain * szsample);
+				memcpy_s(buf.buf16, remain * szsample,
+					 stage, remain * szsample);
 			} else {
-				memcpy_s(stage, remain * szSample,
-					&buf.buf32[DSM_FF_BUF_SZ],
-					remain * szSample);
-				memcpy_s(buf.buf32, remain * szSample,
-					stage, remain * szSample);
+				memcpy_s(stage, remain * szsample,
+					 &buf.buf32[DSM_FF_BUF_SZ],
+					 remain * szsample);
+				memcpy_s(buf.buf32, remain * szsample,
+					 stage, remain * szsample);
 			}
 		}
-		*wrPtr -= DSM_FF_BUF_SZ;		
+		*w_ptr -= DSM_FF_BUF_SZ;
 
-		hSof->iFSamples = hSof->nChannels * hSof->ffFrameSizeSamples;
+		hsof_dsm->ifsamples = hsof_dsm->nchannels * hsof_dsm->ff_fr_sz_samples;
 
-		retCode = DSM_API_FF_process(
-			hSof->dsmHandle,
-			hSof->channelMask, input, &hSof->iFSamples,
-			output, &hSof->oFSamples);
+		retcode = dsm_api_ff_process(hsof_dsm->dsmhandle, hsof_dsm->channelmask,
+					     input, &hsof_dsm->ifsamples,
+					     output, &hsof_dsm->ofsamples);
 
 		for (x = 0; x < DSM_FRM_SZ; x++) {
 			/* Buffer re-ordering LR/LR/LR */
 			if (is_16bit) {
-				buf_out.buf16[*rdPtr + 2 * x] = (output[x]);
-				buf_out.buf16[*rdPtr + 2 * x+ 1] =
+				buf_out.buf16[*r_ptr + 2 * x] = (output[x]);
+				buf_out.buf16[*r_ptr + 2 * x + 1] =
 					(output[x + DSM_FRM_SZ]);
 			} else {
-				buf_out.buf32[*rdPtr + 2 * x] = (output[x] << 16);
-				buf_out.buf32[*rdPtr + 2 * x + 1] =
+				buf_out.buf32[*r_ptr + 2 * x] = (output[x] << 16);
+				buf_out.buf32[*r_ptr + 2 * x + 1] =
 					(output[x + DSM_FRM_SZ] << 16);
 			}
 		}
 
-		*rdPtr += DSM_FF_BUF_SZ;
+		*r_ptr += DSM_FF_BUF_SZ;
 
-		hSof->seq_ff++;
+		hsof_dsm->seq_ff++;
 	}
 
 	/* Output buffer preparation */
-	if (*rdPtr >= nSamples) {
-		memcpy_s(out, nSamples * szSample,
-			buf_out.buf16, nSamples * szSample);
-		remain = (*rdPtr - nSamples);
+	if (*r_ptr >= nsamples) {
+		memcpy_s(out, nsamples * szsample,
+			 buf_out.buf16, nsamples * szsample);
+		remain = (*r_ptr - nsamples);
 		if (remain)	{
 			/* memmove is not available. */
 			if (is_16bit) {
-				memcpy_s(stage, remain * szSample,
-					&buf_out.buf16[nSamples],
-					remain * szSample);
-				memcpy_s(buf_out.buf16, remain * szSample,
-					stage, remain * szSample);
+				memcpy_s(stage, remain * szsample,
+					 &buf_out.buf16[nsamples],
+					 remain * szsample);
+				memcpy_s(buf_out.buf16, remain * szsample,
+					 stage, remain * szsample);
 			} else {
-				memcpy_s(stage, remain * szSample,
-					&buf_out.buf32[nSamples],
-					remain * szSample);
-				memcpy_s(buf_out.buf32, remain * szSample,
-					stage, remain * szSample);
+				memcpy_s(stage, remain * szsample,
+					 &buf_out.buf32[nsamples],
+					 remain * szsample);
+				memcpy_s(buf_out.buf32, remain * szsample,
+					 stage, remain * szsample);
 			}
 		}
-		*rdPtr -= nSamples;
+		*r_ptr -= nsamples;
 	} else {
-		memset(out, 0, nSamples * szSample);
+		memset(out, 0, nsamples * szsample);
 		comp_err(dev,
-			"[DSM] DSM FF process underrun. rdPtr : %d",
-			*rdPtr);
+			"[DSM] DSM FF process underrun. r_ptr : %d",
+			*r_ptr);
 	}
-	memcpy(out, in, nSamples * szSample);
 }
-void sof_dsm_fb_process(struct sof_dsm_struct_t *hSof, struct comp_dev *dev,
-	void *in, int nSamples, int szSample)
+
+void sof_dsm_fb_process(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev,
+			void *in, int nsamples, int szsample)
 {
-	DSM_API_MESSAGE retCode;
+	enum DSM_API_MESSAGE retcode;
 	union sof_dsm_buf buf;
-	int *wrPtr = &(hSof->buf.fb.avail);
-	int16_t *stage = (int16_t *) hSof->buf.stage_fb;
-	int16_t *v = hSof->buf.voltage;
-	int16_t *i = hSof->buf.current;
-	bool is_16bit = szSample == 2 ? true : false;
+	int *w_ptr = &hsof_dsm->buf.fb.avail;
+	int16_t *stage = (int16_t *)hsof_dsm->buf.stage_fb;
+	int16_t *v = hsof_dsm->buf.voltage;
+	int16_t *i = hsof_dsm->buf.current;
+	bool is_16bit = szsample == 2 ? true : false;
 	int remain;
 	int x;
 
-	buf.buf16 = (int16_t *) hSof->buf.fb.buf;
-	buf.buf32 = (int32_t *) hSof->buf.fb.buf;
+	buf.buf16 = (int16_t *)hsof_dsm->buf.fb.buf;
+	buf.buf32 = (int32_t *)hsof_dsm->buf.fb.buf;
 
-	if (!hSof->dsm_init)
+	if (!hsof_dsm->dsm_init)
 		return;
 
-	if (*wrPtr + nSamples <= DSM_FB_BUF_DB_SZ) {
+	if (*w_ptr + nsamples <= DSM_FB_BUF_DB_SZ) {
 		if (is_16bit)
-			memcpy_s(&buf.buf16[*wrPtr], nSamples * szSample,
-				in, nSamples * szSample);
+			memcpy_s(&buf.buf16[*w_ptr], nsamples * szsample,
+				 in, nsamples * szsample);
 		else
-			memcpy_s(&buf.buf32[*wrPtr], nSamples * szSample,
-				in, nSamples * szSample);
-		*wrPtr += nSamples;
+			memcpy_s(&buf.buf32[*w_ptr], nsamples * szsample,
+				 in, nsamples * szsample);
+		*w_ptr += nsamples;
 	} else {
-		comp_err(dev, "[DSM] DSM FB process overflow. wrPtr : %d",
-			*wrPtr);
+		comp_err(dev, "[DSM] DSM FB process overflow. w_ptr : %d",
+			 *w_ptr);
 		return;
 	}
-	if (*wrPtr >= DSM_FB_BUF_SZ) {
+	if (*w_ptr >= DSM_FB_BUF_SZ) {
 		/* Do FB processing */
 		for (x = 0; x < DSM_FRM_SZ; x++) {
 			/* Buffer ordering for DSM process IVIV -> VV... II...*/
@@ -396,37 +384,36 @@ void sof_dsm_fb_process(struct sof_dsm_struct_t *hSof, struct comp_dev *dev,
 			}
 		}
 
-		remain = (*wrPtr - DSM_FB_BUF_SZ);
+		remain = (*w_ptr - DSM_FB_BUF_SZ);
 		if (remain)	{
 			/* memmove is not available. */
 			if (is_16bit) {
-				memcpy_s(stage, remain * szSample,
-					&buf.buf16[DSM_FB_BUF_SZ],
-					remain * szSample);
-				memcpy_s(buf.buf16, remain * szSample,
-					stage, remain * szSample);
+				memcpy_s(stage, remain * szsample,
+					 &buf.buf16[DSM_FB_BUF_SZ],
+					 remain * szsample);
+				memcpy_s(buf.buf16, remain * szsample,
+					 stage, remain * szsample);
 			} else {
-				memcpy_s(stage, remain * szSample,
-					&buf.buf32[DSM_FB_BUF_SZ],
-					remain * szSample);
-				memcpy_s(buf.buf32, remain * szSample,
-					stage, remain * szSample);
+				memcpy_s(stage, remain * szsample,
+					 &buf.buf32[DSM_FB_BUF_SZ],
+					 remain * szsample);
+				memcpy_s(buf.buf32, remain * szsample,
+					 stage, remain * szsample);
 			}
 		}
-		*wrPtr -= DSM_FB_BUF_SZ;
+		*w_ptr -= DSM_FB_BUF_SZ;
 
-		hSof->iBSamples = hSof->fbFrameSizeSamples * hSof->nChannels;
-		hSof->channelMask = 0;
+		hsof_dsm->ibsamples = hsof_dsm->fb_fr_sz_samples * hsof_dsm->nchannels;
+		hsof_dsm->channelmask = 0;
 
-		retCode = DSM_API_FB_process(
-			hSof->dsmHandle,
-			hSof->channelMask, i, v, &hSof->iBSamples);
+		retcode = dsm_api_fb_process(hsof_dsm->dsmhandle,
+					     hsof_dsm->channelmask,
+					     i, v, &hsof_dsm->ibsamples);
 
 		#ifdef PRINT_ADAPTIVE_LOG
-		sof_dsm_get_adaptive_apram(hSof, dev);
+		sof_dsm_get_adaptive_apram(hsof_dsm, dev);
 		#endif
 
-		hSof->seq_fb++;
+		hsof_dsm->seq_fb++;
 	}
 }
-
