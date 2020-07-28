@@ -65,6 +65,12 @@ if(NOT CONFIG_LIBRARY)
 			smart_amp_test.c
 		)
 	endif()
+	if(CONFIG_MAXIM_DSM)
+		add_local_sources(sof
+			smart_amp_maxim.c
+		)
+		add_subdirectory(dsm)
+	endif()
 	add_subdirectory(pcm_converter)
 	if(CONFIG_COMP_ASRC)
 		add_subdirectory(asrc)
