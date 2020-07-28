@@ -61,6 +61,12 @@ static inline int smart_amp_alloc_memory(struct smart_amp_data *sad, struct comp
 
 	hsof_dsm = sad->sof_dsm_handle;
 
+	/* dsm handle */
+	mem_sz[1] = sof_dsm_get_memory_size(hsof_dsm, dev);
+	hsof_dsm->dsmhandle = smart_amp_malloc(mem_sz[1]);
+	if (!hsof_dsm->dsmhandle)
+		goto err;
+
 	/* buffer : sof -> sof dsm ff */
 	size = SOF_FF_BUF_DB_SZ * sizeof(int32_t);
 	hsof_dsm->buf.sof_a_frame_in = smart_amp_malloc(size);

@@ -14,7 +14,7 @@
 #define SOF_FF_BUF_SZ	(SOF_FRM_SZ << 1)
 #define SOF_FB_BUF_SZ	(SOF_FRM_SZ << 2)
 /* DSM frame size */
-#define DSM_FRM_SZ	240
+#define DSM_FRM_SZ	48
 #define DSM_FF_BUF_SZ	(DSM_FRM_SZ << 1)
 #define DSM_FB_BUF_SZ	(DSM_FRM_SZ << 2)
 
@@ -96,6 +96,7 @@ int sof_dsm_inf_fb_copy(struct comp_dev *dev, uint32_t frames,
 			struct comp_buffer *sink, int8_t *chan_map,
 			struct sof_dsm_struct_t *hsof_dsm);
 /* DSM Integration functions */
+int sof_dsm_get_memory_size(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev);
 int sof_dsm_create(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev);
 void sof_dsm_ff_process(struct sof_dsm_struct_t *hsof_dsm, struct comp_dev *dev,
 			void *in, void *out, int nsamples, int szsample);

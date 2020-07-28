@@ -66,6 +66,7 @@ if(NOT CONFIG_LIBRARY)
 		)
 	endif()
 	if(CONFIG_MAXIM_DSM)
+		sof_add_static_library(dsm ./dsm/libdsm.a)
 		add_local_sources(sof
 			smart_amp_maxim.c
 		)

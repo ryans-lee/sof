@@ -17,6 +17,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "dsm_api_public.h"
+
 static void *_wrap_buf_ptr(void *ptr, const struct audio_stream *buffer)
 {
 	if (ptr >= buffer->end_addr)
@@ -170,7 +172,8 @@ int sof_dsm_inf_ff_copy(struct comp_dev *dev, uint32_t frames,
 	}
 
 	if (frames > SOF_FF_BUF_DB_SZ)	{
-		comp_err(dev, "[DSM] FF number of frame error  : %d", frames);
+		comp_err(dev, "[DSM] FF number of frame error  : %d > %d",
+			 frames, SOF_FF_BUF_DB_SZ);
 		return -EINVAL;
 	}
 
@@ -225,7 +228,8 @@ int sof_dsm_inf_fb_copy(struct comp_dev *dev, uint32_t frames,
 	}
 
 	if (frames > SOF_FB_BUF_DB_SZ)	{
-		comp_err(dev, "[DSM] FB number of frame error  : %d", frames);
+		comp_err(dev, "[DSM] FF number of frame error  : %d > %d",
+			 frames, SOF_FB_BUF_DB_SZ);
 		return -EINVAL;
 	}
 
